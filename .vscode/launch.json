@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        
+
+        {
+            "name": "lamsa2_application (Flutter PAR LX1M)",
+            "program": "lib/main.dart",
+            "deviceId": "B5M5T18807001807",
+            "request": "launch",
+            "type": "dart"
+        }
+    ]
+}
