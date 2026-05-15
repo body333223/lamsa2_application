@@ -3,10 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lamsa/features/Payment/presentation/widgets/confirmation_detail_row.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../home/presentation/pages/home_screen.dart';
-
 
 class ConfirmationScreen extends StatelessWidget {
   final String bookingId;
@@ -193,7 +193,16 @@ class ConfirmationScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               TextButton(
-                onPressed: () {},
+                onPressed: () {
+                  final shareText =
+                      '✨ حجزت خدمة "$serviceName" من تطبيق لمسة!\n'
+                      '📅 التاريخ: $date\n'
+                      '🕐 الوقت: $time\n'
+                      '💰 السعر: ${price.toInt()} ر.س\n'
+                      '📋 رقم الحجز: #${bookingId.length >= 8 ? bookingId.substring(0, 8).toUpperCase() : bookingId.toUpperCase()}\n\n'
+                      'جربي تطبيق لمسة - خدمات تجميل وسبا توصلك لبيتك 💅';
+                  Share.share(shareText);
+                },
                 child: Text(
                   s.shareBooking,
                   style: GoogleFonts.cairo(

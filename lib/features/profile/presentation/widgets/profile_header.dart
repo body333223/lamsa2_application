@@ -11,6 +11,7 @@ import '../../../../services/image_upload_service.dart';
 class ProfileHeader extends StatelessWidget {
   final String name;
   final String email;
+  final String phone;
   final int bookings;
   final String? photoUrl;
 
@@ -19,6 +20,7 @@ class ProfileHeader extends StatelessWidget {
     required this.name,
     required this.email,
     required this.bookings,
+    this.phone = '',
     this.photoUrl,
   });
 
@@ -145,6 +147,31 @@ class ProfileHeader extends StatelessWidget {
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.onSurface.withOpacity(0.5),
+              ),
+            ),
+          ],
+          if (phone.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Directionality(
+              textDirection: TextDirection.ltr,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.phone_rounded,
+                    size: 16,
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    phone,
+                    style: GoogleFonts.cairo(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

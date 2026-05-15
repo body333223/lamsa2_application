@@ -11,7 +11,7 @@ import '../../../../services/firestore_service.dart';
 import '../../../support/presentation/pages/support_chat_screen.dart';
 
 /// Action buttons for booking details (postpone, cancel, contact support).
-class BookingActionButtons extends StatelessWidget {
+class BookingActionButtons extends StatefulWidget {
   final BookingModel booking;
   final bool canCancel;
 
@@ -22,6 +22,11 @@ class BookingActionButtons extends StatelessWidget {
   });
 
   @override
+  State<BookingActionButtons> createState() => _BookingActionButtonsState();
+}
+
+class _BookingActionButtonsState extends State<BookingActionButtons> {
+  @override
   Widget build(BuildContext context) {
     final s = AppStrings(context);
     final theme = Theme.of(context);
@@ -29,17 +34,16 @@ class BookingActionButtons extends StatelessWidget {
 
     return Column(
       children: [
-        if (canCancel) ...[
+        if (widget.canCancel) ...[
           AppTheme.buildGlassButton(
-            onPressed: () =>
-                _handleSupportRequest(context, s, 'postpone', theme),
+            onPressed: () => _handleSupportRequest(s, 'postpone', theme),
             label: 'تقديم طلب تأجيل',
             gradientStart: AppColors.primary,
             gradientEnd: AppColors.primaryLight,
           ),
           const SizedBox(height: 16),
           AppTheme.buildGlassButton(
-            onPressed: () => _handleSupportRequest(context, s, 'cancel', theme),
+            onPressed: () => _handleSupportRequest(s, 'cancel', theme),
             label: s.cancelBooking,
             gradientStart: const Color(0xFFC04E4A),
             gradientEnd: const Color(0xFFE57373),
@@ -62,9 +66,13 @@ class BookingActionButtons extends StatelessWidget {
   }
 
   Future<void> _handleSupportRequest(
-      BuildContext context, AppStrings s, String type, ThemeData theme) async {
+      AppStrings s, String type, ThemeData theme) async {
     final isArabic = s.isArabic;
     final actionColor = type == 'cancel' ? AppColors.error : AppColors.primary;
+
+    // Capture services before dialog
+    final authService = context.read<AuthService>();
+    final firestoreService = context.read<FirestoreService>();
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -160,38 +168,36 @@ class BookingActionButtons extends StatelessWidget {
       },
     );
 
-    if (confirmed == true && context.mounted) {
+    if (confirmed == true && mounted) {
       try {
-        final userId = context.read<AuthService>().currentUser?.uid ?? '';
+        final userId = authService.currentUser?.uid ?? '';
         if (userId.isEmpty) return;
 
         final message = type == 'cancel'
-            ? 'مرحبا، أبي ألغي الحجز رقم ${booking.id.substring(0, 8).toUpperCase()} لخدمة ${booking.serviceName}.'
-            : 'مرحبا، أبي أأجل الحجز رقم ${booking.id.substring(0, 8).toUpperCase()} لخدمة ${booking.serviceName}.';
+            ? 'مرحبا، أبي ألغي الحجز رقم ${widget.booking.id.substring(0, 8).toUpperCase()} لخدمة ${widget.booking.serviceName}.'
+            : 'مرحبا، أبي أأجل الحجز رقم ${widget.booking.id.substring(0, 8).toUpperCase()} لخدمة ${widget.booking.serviceName}.';
 
         if (type == 'cancel') {
-          await context
-              .read<FirestoreService>()
-              .requestCancelBooking(booking.id);
+          await firestoreService.requestCancelBooking(widget.booking.id);
         }
 
-        await context.read<FirestoreService>().createSupportRequest(
-              userId: userId,
-              bookingId: booking.id,
-              message: message,
-            );
+        await firestoreService.createSupportRequest(
+          userId: userId,
+          bookingId: widget.booking.id,
+          message: message,
+        );
 
-        final userData = await context.read<AuthService>().getUserData();
+        final userData = await authService.getUserData();
         final userName = userData?['name'];
 
-        await context.read<FirestoreService>().sendMessage(
-              userId: userId,
-              text: message,
-              isAdmin: false,
-              userName: userName,
-            );
+        await firestoreService.sendMessage(
+          userId: userId,
+          text: message,
+          isAdmin: false,
+          userName: userName,
+        );
 
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('تم إرسال الطلب لخدمة العملاء',
@@ -210,7 +216,7 @@ class BookingActionButtons extends StatelessWidget {
           );
         }
       } catch (e) {
-        if (context.mounted) {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(s.errorOccurred, style: GoogleFonts.cairo()),

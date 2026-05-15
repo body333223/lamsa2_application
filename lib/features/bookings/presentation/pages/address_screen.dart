@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../services/locale_service.dart';
 
-/// Screen for entering/selecting home address with real GPS location detection.
+/// Modern address selection screen with GPS auto-detect.
 class AddressScreen extends StatefulWidget {
   const AddressScreen({super.key});
 
@@ -16,26 +16,38 @@ class AddressScreen extends StatefulWidget {
   State<AddressScreen> createState() => _AddressScreenState();
 }
 
-class _AddressScreenState extends State<AddressScreen> {
+class _AddressScreenState extends State<AddressScreen>
+    with SingleTickerProviderStateMixin {
   final _addressCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
   bool _isLocating = false;
   bool _locationDetected = false;
-  String? _detectedAddress;
+  String? _detectedCity;
+  String? _detectedStreet;
   double? _lat;
   double? _lng;
   String? _errorMessage;
 
+  late AnimationController _pulseCtrl;
+  late Animation<double> _pulseAnim;
+
   @override
   void initState() {
     super.initState();
-    _detectLocation();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+    _pulseAnim = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
+    );
   }
 
   @override
   void dispose() {
     _addressCtrl.dispose();
     _notesCtrl.dispose();
+    _pulseCtrl.dispose();
     super.dispose();
   }
 
@@ -46,7 +58,6 @@ class _AddressScreenState extends State<AddressScreen> {
     });
 
     try {
-      // Check if location services are enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         setState(() {
@@ -56,7 +67,6 @@ class _AddressScreenState extends State<AddressScreen> {
         return;
       }
 
-      // Check permissions
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -77,7 +87,6 @@ class _AddressScreenState extends State<AddressScreen> {
         return;
       }
 
-      // Get current position
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
@@ -85,7 +94,6 @@ class _AddressScreenState extends State<AddressScreen> {
       _lat = position.latitude;
       _lng = position.longitude;
 
-      // Reverse geocode to get address
       try {
         final placemarks = await placemarkFromCoordinates(
           position.latitude,
@@ -94,17 +102,22 @@ class _AddressScreenState extends State<AddressScreen> {
 
         if (placemarks.isNotEmpty) {
           final place = placemarks.first;
-          _detectedAddress = [
+          _detectedCity = place.locality ?? place.administrativeArea ?? '';
+          _detectedStreet = place.street ?? '';
+
+          final fullAddress = [
             place.street,
             place.subLocality,
             place.locality,
             place.administrativeArea,
           ].where((s) => s != null && s.isNotEmpty).join('، ');
 
-          _addressCtrl.text = _detectedAddress ?? '';
+          _addressCtrl.text = fullAddress;
         }
       } catch (_) {
         // Geocoding failed but we still have coordinates
+        _detectedCity =
+            '${_lat!.toStringAsFixed(4)}, ${_lng!.toStringAsFixed(4)}';
       }
 
       if (mounted) {
@@ -124,13 +137,12 @@ class _AddressScreenState extends State<AddressScreen> {
   }
 
   void _confirmAddress() {
+    final isArabic = context.read<LocaleService>().isArabic;
     if (_addressCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            context.read<LocaleService>().isArabic
-                ? 'يرجى إدخال العنوان'
-                : 'Please enter an address',
+            isArabic ? 'يرجى إدخال العنوان' : 'Please enter an address',
             style: GoogleFonts.cairo(),
           ),
           behavior: SnackBarBehavior.floating,
@@ -157,273 +169,318 @@ class _AddressScreenState extends State<AddressScreen> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(
-          isArabic ? 'الموقع' : 'Location',
-          style: GoogleFonts.cairo(
-            fontWeight: FontWeight.w800,
-            fontSize: 20,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-        leading: IconButton(
-          icon: Icon(
-            isArabic
-                ? Icons.arrow_forward_ios_rounded
-                : Icons.arrow_back_ios_rounded,
-            size: 20,
-            color: theme.colorScheme.onSurface,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Map Preview / Location Card ──
-            _LocationCard(
-              isLocating: _isLocating,
-              locationDetected: _locationDetected,
-              detectedAddress: _detectedAddress,
-              errorMessage: _errorMessage,
-              lat: _lat,
-              lng: _lng,
-              onRetry: _detectLocation,
-              isArabic: isArabic,
-              isDark: isDark,
-            ),
-            const SizedBox(height: 28),
-
-            // ── Address Input ──
-            Text(
-              isArabic ? 'العنوان التفصيلي' : 'Detailed Address',
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          // ── App Bar ──
+          SliverAppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            pinned: true,
+            centerTitle: true,
+            title: Text(
+              isArabic ? 'تحديد الموقع' : 'Select Location',
               style: GoogleFonts.cairo(
-                fontSize: 16,
                 fontWeight: FontWeight.w800,
+                fontSize: 20,
                 color: theme.colorScheme.onSurface,
               ),
             ),
-            const SizedBox(height: 12),
-            _ModernTextField(
-              controller: _addressCtrl,
-              hint: isArabic
-                  ? 'مثال: شارع الملك فهد، عمارة ٥، شقة ١٢'
-                  : 'e.g. King Fahd St, Building 5, Apt 12',
-              icon: Icons.home_rounded,
-              isDark: isDark,
-              maxLines: 2,
-            ),
-            const SizedBox(height: 20),
-
-            // ── Notes Input ──
-            Text(
-              isArabic ? 'ملاحظات للسائق (اختياري)' : 'Driver Notes (optional)',
-              style: GoogleFonts.cairo(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: theme.colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _ModernTextField(
-              controller: _notesCtrl,
-              hint: isArabic
-                  ? 'مثال: الدور الثالث، الباب الأيمن'
-                  : 'e.g. 3rd floor, right door',
-              icon: Icons.note_alt_rounded,
-              isDark: isDark,
-              maxLines: 2,
-            ),
-            const SizedBox(height: 36),
-
-            // ── Confirm Button ──
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: _confirmAddress,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  elevation: 0,
+            leading: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color:
+                      (isDark ? Colors.white : Colors.black).withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
-                  isArabic ? 'تأكيد الموقع' : 'Confirm Location',
-                  style: GoogleFonts.cairo(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                child: IconButton(
+                  icon: Icon(
+                    isArabic
+                        ? Icons.arrow_forward_ios_rounded
+                        : Icons.arrow_back_ios_rounded,
+                    size: 18,
+                    color: theme.colorScheme.onSurface,
                   ),
+                  onPressed: () => Navigator.pop(context),
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                const SizedBox(height: 20),
+
+                // ── GPS Location Card ──
+                _buildLocationCard(theme, isDark, isArabic),
+                const SizedBox(height: 28),
+
+                // ── Address Input Section ──
+                _buildSectionTitle(
+                  isArabic ? 'العنوان التفصيلي' : 'Detailed Address',
+                  Icons.edit_location_alt_rounded,
+                  theme,
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _addressCtrl,
+                  hint: isArabic
+                      ? 'شارع الملك فهد، عمارة ٥، شقة ١٢'
+                      : 'King Fahd St, Building 5, Apt 12',
+                  icon: Icons.home_rounded,
+                  isDark: isDark,
+                  maxLines: 2,
+                  theme: theme,
+                ),
+                const SizedBox(height: 20),
+
+                // ── Notes Section ──
+                _buildSectionTitle(
+                  isArabic ? 'ملاحظات (اختياري)' : 'Notes (optional)',
+                  Icons.sticky_note_2_rounded,
+                  theme,
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _notesCtrl,
+                  hint: isArabic
+                      ? 'الدور الثالث، الباب الأيمن...'
+                      : '3rd floor, right door...',
+                  icon: Icons.note_alt_rounded,
+                  isDark: isDark,
+                  maxLines: 2,
+                  theme: theme,
+                ),
+                const SizedBox(height: 36),
+
+                // ── Confirm Button ──
+                Container(
+                  width: double.infinity,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: const LinearGradient(
+                      colors: [AppColors.primary, AppColors.accent],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.3),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: _confirmAddress,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_circle_rounded,
+                            color: Colors.white, size: 22),
+                        const SizedBox(width: 10),
+                        Text(
+                          isArabic ? 'تأكيد الموقع' : 'Confirm Location',
+                          style: GoogleFonts.cairo(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ]),
+            ),
+          ),
+        ],
       ),
     );
   }
-}
 
-// ── Location Card with mini map placeholder ──────────────────────────────────
-
-class _LocationCard extends StatelessWidget {
-  final bool isLocating;
-  final bool locationDetected;
-  final String? detectedAddress;
-  final String? errorMessage;
-  final double? lat;
-  final double? lng;
-  final VoidCallback onRetry;
-  final bool isArabic;
-  final bool isDark;
-
-  const _LocationCard({
-    required this.isLocating,
-    required this.locationDetected,
-    required this.detectedAddress,
-    required this.errorMessage,
-    required this.lat,
-    required this.lng,
-    required this.onRetry,
-    required this.isArabic,
-    required this.isDark,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
+  Widget _buildLocationCard(ThemeData theme, bool isDark, bool isArabic) {
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.06) : Colors.white,
         borderRadius: BorderRadius.circular(24),
+        gradient: _locationDetected
+            ? LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.success.withOpacity(isDark ? 0.15 : 0.08),
+                  AppColors.success.withOpacity(isDark ? 0.05 : 0.02),
+                ],
+              )
+            : null,
+        color: _locationDetected
+            ? null
+            : (isDark ? Colors.white.withOpacity(0.06) : Colors.white),
         border: Border.all(
-          color: locationDetected
+          color: _locationDetected
               ? AppColors.success.withOpacity(0.3)
               : (isDark
-                  ? Colors.white.withOpacity(0.1)
-                  : Colors.grey.withOpacity(0.12)),
+                  ? Colors.white.withOpacity(0.08)
+                  : Colors.grey.withOpacity(0.1)),
+          width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.15 : 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: _locationDetected
+                ? AppColors.success.withOpacity(0.1)
+                : Colors.black.withOpacity(isDark ? 0.15 : 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Mini map area
+          // Top visual area
           Container(
-            height: 160,
+            height: 140,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withOpacity(0.03)
-                  : AppColors.primaryLight.withOpacity(0.3),
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(24)),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: _locationDetected
+                    ? [
+                        AppColors.success.withOpacity(isDark ? 0.2 : 0.12),
+                        AppColors.success.withOpacity(isDark ? 0.05 : 0.03),
+                      ]
+                    : [
+                        AppColors.primary.withOpacity(isDark ? 0.15 : 0.08),
+                        AppColors.primary.withOpacity(isDark ? 0.03 : 0.01),
+                      ],
+              ),
             ),
-            child: isLocating
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 3,
+            child: _isLocating
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 3,
+                            color: AppColors.primary,
+                            backgroundColor:
+                                AppColors.primary.withOpacity(0.15),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          isArabic
+                              ? 'جاري تحديد موقعك...'
+                              : 'Detecting location...',
+                          style: GoogleFonts.cairo(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          ),
+                        ),
+                      ],
                     ),
                   )
-                : locationDetected
-                    ? Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          // Grid pattern to simulate map
-                          GridView.builder(
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 8,
+                : _locationDetected
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: AppColors.success,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.success.withOpacity(0.3),
+                                    blurRadius: 16,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.location_on_rounded,
+                                color: Colors.white,
+                                size: 28,
+                              ),
                             ),
-                            itemCount: 40,
-                            itemBuilder: (_, __) => Container(
-                              margin: const EdgeInsets.all(0.5),
-                              color: (isDark ? Colors.white : AppColors.primary)
-                                  .withOpacity(0.03),
-                            ),
-                          ),
-                          // Pin icon
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.primary.withOpacity(0.3),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.location_on_rounded,
-                                  color: Colors.white,
-                                  size: 24,
+                            const SizedBox(height: 12),
+                            if (_detectedCity != null)
+                              Text(
+                                _detectedCity!,
+                                style: GoogleFonts.cairo(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.colorScheme.onSurface,
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              if (lat != null && lng != null)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.6),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    '${lat!.toStringAsFixed(4)}, ${lng!.toStringAsFixed(4)}',
-                                    style: GoogleFonts.cairo(
-                                      fontSize: 10,
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                            if (_detectedStreet != null &&
+                                _detectedStreet!.isNotEmpty)
+                              Text(
+                                _detectedStreet!,
+                                style: GoogleFonts.cairo(
+                                  fontSize: 12,
+                                  color: theme.colorScheme.onSurface
+                                      .withOpacity(0.5),
                                 ),
-                            ],
-                          ),
-                        ],
+                              ),
+                          ],
+                        ),
                       )
                     : Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
-                              Icons.location_off_rounded,
-                              size: 40,
-                              color:
-                                  theme.colorScheme.onSurface.withOpacity(0.3),
+                            AnimatedBuilder(
+                              animation: _pulseAnim,
+                              builder: (_, child) => Transform.scale(
+                                scale: _pulseAnim.value,
+                                child: child,
+                              ),
+                              child: Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.15),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.location_searching_rounded,
+                                  color: AppColors.primary,
+                                  size: 28,
+                                ),
+                              ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 12),
                             Text(
-                              errorMessage ??
+                              _errorMessage ??
                                   (isArabic
-                                      ? 'اضغطي لتحديد الموقع'
-                                      : 'Tap to detect location'),
+                                      ? 'اضغطي لتحديد موقعك'
+                                      : 'Tap to detect your location'),
                               style: GoogleFonts.cairo(
                                 fontSize: 13,
-                                color: errorMessage != null
+                                fontWeight: FontWeight.w600,
+                                color: _errorMessage != null
                                     ? AppColors.error
                                     : theme.colorScheme.onSurface
-                                        .withOpacity(0.4),
+                                        .withOpacity(0.5),
                               ),
                             ),
                           ],
@@ -431,77 +488,110 @@ class _LocationCard extends StatelessWidget {
                       ),
           ),
 
-          // Bottom info section
+          // Bottom action area
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
+                // Status icon
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 46,
+                  height: 46,
                   decoration: BoxDecoration(
-                    color: locationDetected
+                    color: _locationDetected
                         ? AppColors.success.withOpacity(0.12)
                         : AppColors.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
-                    locationDetected
+                    _locationDetected
                         ? Icons.check_circle_rounded
-                        : Icons.my_location_rounded,
-                    color: locationDetected
+                        : Icons.gps_fixed_rounded,
+                    color: _locationDetected
                         ? AppColors.success
                         : AppColors.primary,
                     size: 22,
                   ),
                 ),
                 const SizedBox(width: 14),
+
+                // Status text
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        locationDetected
+                        _locationDetected
                             ? (isArabic
                                 ? 'تم تحديد الموقع ✓'
                                 : 'Location detected ✓')
-                            : (isArabic ? 'تحديد الموقع' : 'Detect Location'),
+                            : (isArabic
+                                ? 'تحديد الموقع تلقائياً'
+                                : 'Auto-detect location'),
                         style: GoogleFonts.cairo(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
-                          color: locationDetected
+                          color: _locationDetected
                               ? AppColors.success
                               : theme.colorScheme.onSurface,
                         ),
                       ),
-                      if (detectedAddress != null)
-                        Text(
-                          detectedAddress!,
-                          style: GoogleFonts.cairo(
-                            fontSize: 12,
-                            color: theme.colorScheme.onSurface.withOpacity(0.5),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      Text(
+                        _locationDetected
+                            ? (isArabic
+                                ? 'اضغطي لتحديث الموقع'
+                                : 'Tap to refresh')
+                            : (isArabic
+                                ? 'يستخدم GPS لتحديد موقعك'
+                                : 'Uses GPS to find you'),
+                        style: GoogleFonts.cairo(
+                          fontSize: 11,
+                          color: theme.colorScheme.onSurface.withOpacity(0.4),
                         ),
+                      ),
                     ],
                   ),
                 ),
-                // Retry/Refresh button
+
+                // Action button
                 GestureDetector(
-                  onTap: onRetry,
+                  onTap: _isLocating ? null : _detectLocation,
                   child: Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      isLocating
-                          ? Icons.hourglass_top_rounded
-                          : Icons.refresh_rounded,
                       color: AppColors.primary,
-                      size: 20,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isLocating
+                              ? Icons.hourglass_top_rounded
+                              : Icons.my_location_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _locationDetected
+                              ? (isArabic ? 'تحديث' : 'Refresh')
+                              : (isArabic ? 'حدّدي' : 'Detect'),
+                          style: GoogleFonts.cairo(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -512,41 +602,53 @@ class _LocationCard extends StatelessWidget {
       ),
     );
   }
-}
 
-// ── Modern Text Field ────────────────────────────────────────────────────────
+  Widget _buildSectionTitle(String title, IconData icon, ThemeData theme) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: AppColors.primary, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: GoogleFonts.cairo(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+      ],
+    );
+  }
 
-class _ModernTextField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final IconData icon;
-  final bool isDark;
-  final int maxLines;
-
-  const _ModernTextField({
-    required this.controller,
-    required this.hint,
-    required this.icon,
-    required this.isDark,
-    this.maxLines = 1,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    required bool isDark,
+    required ThemeData theme,
+    int maxLines = 1,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: isDark ? Colors.white.withOpacity(0.06) : Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isDark
-              ? Colors.white.withOpacity(0.1)
-              : Colors.grey.withOpacity(0.12),
+              ? Colors.white.withOpacity(0.08)
+              : Colors.grey.withOpacity(0.1),
         ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(isDark ? 0.1 : 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -557,7 +659,7 @@ class _ModernTextField extends StatelessWidget {
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: GoogleFonts.cairo(
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
+            color: theme.colorScheme.onSurface.withOpacity(0.3),
             fontSize: 13,
           ),
           prefixIcon: Icon(

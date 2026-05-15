@@ -38,7 +38,9 @@ class ServiceInfoSection extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         // Info chips row
-        Row(
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
           textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
           children: [
             _InfoChip(
@@ -49,14 +51,12 @@ class ServiceInfoSection extends StatelessWidget {
                   ? '(${service.reviewCount} تقييم)'
                   : '(${service.reviewCount})',
             ),
-            const SizedBox(width: 10),
             _InfoChip(
               icon: Icons.access_time_rounded,
               iconColor: AppColors.primary,
               label: '${service.durationMinutes}',
               sublabel: isArabic ? 'دقيقة' : 'min',
             ),
-            const SizedBox(width: 10),
             _InfoChip(
               icon: Icons.verified_rounded,
               iconColor: AppColors.success,

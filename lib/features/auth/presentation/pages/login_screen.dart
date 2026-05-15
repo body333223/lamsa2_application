@@ -8,11 +8,10 @@ import '../../../../services/locale_service.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glow_orb.dart';
-import '../../../home/presentation/pages/home_screen.dart';
-import '../widgets/auth_text_field.dart';
 import '../widgets/auth_header.dart';
+import '../widgets/country_code_picker.dart';
 import '../widgets/social_login_buttons.dart';
-import 'phone_register_screen.dart';
+import 'otp_verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,43 +21,57 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailCtrl = TextEditingController();
-  final _passwordCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _obscurePassword = true;
+
+  CountryCode _selectedCountry = countryCodes.first; // Saudi Arabia
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
-    _passwordCtrl.dispose();
+    _phoneCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _login() async {
+  Future<void> _sendOtp() async {
     if (!_formKey.currentState!.validate()) return;
+
     final auth = context.read<AuthService>();
-    try {
-      await auth.loginWithEmailPassword(
-        _emailCtrl.text.trim(),
-        _passwordCtrl.text.trim(),
-      );
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString(), style: GoogleFonts.cairo()),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+    String phone = _phoneCtrl.text.trim();
+
+    // Remove leading zero if present
+    if (phone.startsWith('0')) {
+      phone = phone.substring(1);
     }
+
+    // Combine country code + phone number
+    final fullPhone = '${_selectedCountry.dialCode}$phone';
+
+    await auth.verifyPhoneNumber(
+      phoneNumber: fullPhone,
+      onCodeSent: (verificationId) {
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => OtpVerificationScreen(
+              phoneNumber: fullPhone,
+            ),
+          ),
+        );
+      },
+      onError: (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error, style: GoogleFonts.cairo()),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -129,7 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              s.loginSubtitle,
+                              s.phoneRegisterSubtitle,
                               style: GoogleFonts.cairo(
                                 fontSize: 14,
                                 color: theme.colorScheme.onSurface
@@ -139,55 +152,98 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             const SizedBox(height: 32),
 
-                            // Email Field
-                            AuthTextField(
-                              controller: _emailCtrl,
-                              label: s.email,
-                              icon: Icons.email_outlined,
-                              keyboardType: TextInputType.emailAddress,
-                              validator: (v) {
-                                if (v == null || v.trim().isEmpty) {
-                                  return s.enterEmail;
-                                }
-                                if (!v.contains('@')) return s.invalidEmail;
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: 20),
+                            // Phone Number Field with Country Code Picker
+                            Directionality(
+                              textDirection: TextDirection.ltr,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Country Code Picker
+                                  CountryCodePicker(
+                                    selectedCountry: _selectedCountry,
+                                    isArabic: isArabic,
+                                    onChanged: (country) {
+                                      setState(() {
+                                        _selectedCountry = country;
+                                      });
+                                    },
+                                  ),
+                                  const SizedBox(width: 10),
 
-                            // Password Field
-                            AuthTextField(
-                              controller: _passwordCtrl,
-                              label: s.password,
-                              icon: Icons.lock_outline_rounded,
-                              obscureText: _obscurePassword,
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_off_rounded
-                                      : Icons.visibility_rounded,
-                                  size: 20,
-                                  color: AppColors.primary.withOpacity(0.6),
-                                ),
-                                onPressed: () => setState(
-                                    () => _obscurePassword = !_obscurePassword),
+                                  // Phone Number Input
+                                  Expanded(
+                                    child: TextFormField(
+                                      controller: _phoneCtrl,
+                                      keyboardType: TextInputType.phone,
+                                      textDirection: TextDirection.ltr,
+                                      style: GoogleFonts.cairo(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                      decoration: InputDecoration(
+                                        labelText: s.phoneNumber,
+                                        labelStyle: GoogleFonts.cairo(
+                                          fontSize: 14,
+                                          color: isDark
+                                              ? Colors.white38
+                                              : AppColors.textLight,
+                                        ),
+                                        hintText: '5XXXXXXXX',
+                                        hintStyle: GoogleFonts.cairo(
+                                          color: theme.colorScheme.onSurface
+                                              .withOpacity(0.3),
+                                        ),
+                                        filled: true,
+                                        fillColor: (isDark
+                                                ? Colors.white
+                                                : Colors.black)
+                                            .withOpacity(0.05),
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        enabledBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          borderSide: BorderSide.none,
+                                        ),
+                                        focusedBorder: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                          borderSide: BorderSide(
+                                            color: AppColors.primary
+                                                .withOpacity(0.5),
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        errorStyle:
+                                            GoogleFonts.cairo(fontSize: 11),
+                                      ),
+                                      validator: (v) {
+                                        if (v == null || v.trim().isEmpty) {
+                                          return s.enterPhoneNumber;
+                                        }
+                                        final cleaned = v.replaceAll(
+                                            RegExp(r'[\s\-\(\)]'), '');
+                                        if (cleaned.length < 7) {
+                                          return s.invalidPhoneNumber;
+                                        }
+                                        return null;
+                                      },
+                                    ),
+                                  ),
+                                ],
                               ),
-                              validator: (v) {
-                                if (v == null || v.isEmpty) {
-                                  return s.enterPassword;
-                                }
-                                if (v.length < 6) return s.passwordTooShort;
-                                return null;
-                              },
                             ),
                             const SizedBox(height: 32),
 
-                            // Login Button
+                            // Send OTP Button
                             Consumer<AuthService>(
                               builder: (_, auth, __) =>
                                   AppTheme.buildGlassButton(
-                                onPressed: auth.isLoading ? () {} : _login,
-                                label: s.login,
+                                onPressed: auth.isLoading ? () {} : _sendOtp,
+                                label: s.sendOtp,
                                 isLoading: auth.isLoading,
                               ),
                             ),
@@ -200,35 +256,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 32),
-
-                    // Register Link
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          s.noAccount,
-                          style: GoogleFonts.cairo(
-                              color:
-                                  theme.colorScheme.onSurface.withOpacity(0.6)),
-                        ),
-                        const SizedBox(width: 4),
-                        GestureDetector(
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const PhoneRegisterScreen()),
-                          ),
-                          child: Text(
-                            s.createAccount,
-                            style: GoogleFonts.cairo(
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                     const SizedBox(height: 40),
 
                     // Privacy Text

@@ -20,55 +20,6 @@ class AuthService extends ChangeNotifier {
   bool get isLoggedIn => _auth.currentUser != null;
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // ── Email/Password ────────────────────────────────────
-
-  Future<void> loginWithEmailPassword(String email, String password) async {
-    isLoading = true;
-    notifyListeners();
-
-    try {
-      await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-    } on FirebaseAuthException catch (e) {
-      throw _mapFirebaseAuthError(e);
-    } catch (_) {
-      throw 'حدث خطأ غير متوقع أثناء تسجيل الدخول';
-    } finally {
-      isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> registerWithEmailPassword(
-    String email,
-    String password, {
-    String? name,
-  }) async {
-    isLoading = true;
-    notifyListeners();
-
-    try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      if (name != null && name.trim().isNotEmpty) {
-        await credential.user?.updateDisplayName(name.trim());
-        await credential.user?.reload();
-      }
-    } on FirebaseAuthException catch (e) {
-      throw _mapFirebaseAuthError(e);
-    } catch (_) {
-      throw 'حدث خطأ غير متوقع أثناء إنشاء الحساب';
-    } finally {
-      isLoading = false;
-      notifyListeners();
-    }
-  }
-
   // ── Google Sign-In ────────────────────────────────────
 
   Future<void> signInWithGoogle() async {

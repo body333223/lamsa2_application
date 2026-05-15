@@ -46,7 +46,7 @@ final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
 
 // Deduplication: prevent showing same notification multiple times
-final Set<String> _shownNotifications = {};
+final Set<String> shownNotifications = {};
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -114,9 +114,9 @@ Future<void> main() async {
 
       await FirebaseMessaging.instance
           .setForegroundNotificationPresentationOptions(
-        alert: true,
+        alert: false,
         badge: true,
-        sound: true,
+        sound: false,
       );
 
       await FirebaseMessaging.instance.requestPermission(
@@ -136,17 +136,17 @@ Future<void> main() async {
 
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         if (message.notification != null) {
-          // Deduplicate — use content as key, ignore repeats
-          final contentKey =
+          // Deduplicate — use messageId as primary key, fallback to content
+          final contentKey = message.messageId ??
               '${message.notification!.title}_${message.notification!.body}';
-          if (_shownNotifications.contains(contentKey)) {
+          if (shownNotifications.contains(contentKey)) {
             return; // Already shown
           }
-          _shownNotifications.add(contentKey);
+          shownNotifications.add(contentKey);
 
           // Clear old keys after 30 seconds to allow future notifications
           Future.delayed(const Duration(seconds: 30), () {
-            _shownNotifications.remove(contentKey);
+            shownNotifications.remove(contentKey);
           });
 
           showOverlayNotification((context) {

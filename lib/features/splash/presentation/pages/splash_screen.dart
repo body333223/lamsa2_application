@@ -183,24 +183,22 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                           const SizedBox(height: 24),
                           Text(
-                            'Lamsa',
-                            style: GoogleFonts.cairo(
-                              fontSize: 54,
-                              fontWeight: FontWeight.w600,
+                            'لمسة',
+                            style: GoogleFonts.amiri(
+                              fontSize: 58,
+                              fontWeight: FontWeight.bold,
                               color: isDark ? Colors.white : AppColors.textDark,
-                              letterSpacing: 2,
                             ),
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'Luxury Wellness at Your Doorstep',
+                            'جمالك يوصلك لبيتك ✨',
                             style: GoogleFonts.cairo(
                               fontSize: 16,
                               color:
                                   (isDark ? Colors.white : AppColors.textMedium)
                                       .withOpacity(0.8),
-                              fontWeight: FontWeight.w400,
-                              letterSpacing: 0.5,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 60),

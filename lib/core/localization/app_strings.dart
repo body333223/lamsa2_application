@@ -25,8 +25,8 @@ class AppStrings {
   String get name => isArabic ? 'الاسم' : 'Name';
   String get language => isArabic ? 'English' : 'العربية';
   String get loginSubtitle => isArabic
-      ? 'سجّلي دخولك بالإيميل وكلمة المرور'
-      : 'Sign in using your email and password';
+      ? 'أدخلي رقم هاتفك عشان نرسل لك رمز التحقق'
+      : 'Enter your phone number to receive a verification code';
   String get registerSubtitle => isArabic
       ? 'أدخلي بياناتك عشان تنشئي حساب جديد'
       : 'Enter your details to create a new account';

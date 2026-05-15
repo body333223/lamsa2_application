@@ -13,15 +13,15 @@ class AppColors {
   // Accent — Champagne gold
   static const Color accent = Color(0xFFDDB681);
 
-  // Backgrounds - Nude beige & Pearl white
-  static const Color secondary = Color(0xFFEBE5DF);
-  static const Color background = Color(0xFFF5F3F1);
+  // Backgrounds - Warm cream & soft white
+  static const Color secondary = Color(0xFFF5EDE8);
+  static const Color background = Color(0xFFFAF8F6);
   static const Color surface = Color(0xFFFFFFFF);
 
-  // Text - Warm gray / Dark Warm
-  static const Color textDark = Color(0xFF2C2A29);
-  static const Color textMedium = Color(0xFF75716E);
-  static const Color textLight = Color(0xFFAFA9A5);
+  // Text - Warm dark tones
+  static const Color textDark = Color(0xFF1E1B19);
+  static const Color textMedium = Color(0xFF5C5652);
+  static const Color textLight = Color(0xFF9E9590);
 
   // UI
   static const Color border = Color(0xFFE5DDD5);

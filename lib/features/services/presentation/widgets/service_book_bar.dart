@@ -68,19 +68,22 @@ class ServiceBookBar extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
                     children: [
-                      Text(
-                        '${service.price.toInt()}',
-                        style: GoogleFonts.cairo(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.primary,
+                      Flexible(
+                        child: Text(
+                          '${service.price.toInt()}',
+                          style: GoogleFonts.cairo(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        isArabic ? 'ر.س' : 'EGP',
+                        isArabic ? 'ر.س' : 'SAR',
                         style: GoogleFonts.cairo(
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                           color: AppColors.primary.withOpacity(0.7),
                         ),

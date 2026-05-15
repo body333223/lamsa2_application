@@ -245,7 +245,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   AppTheme.buildGlassContainer(
                     context: context,
                     opacity: isDark ? 0.15 : 0.6,
-                    padding: const EdgeInsets.all(32),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 32),
                     child: Column(
                       children: [
                         Directionality(
@@ -253,49 +254,52 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: List.generate(6, (index) {
-                              return SizedBox(
-                                width: 45,
-                                height: 55,
-                                child: TextFormField(
-                                  controller: _otpControllers[index],
-                                  focusNode: _focusNodes[index],
-                                  keyboardType: TextInputType.number,
-                                  textAlign: TextAlign.center,
-                                  maxLength: 1,
-                                  style: GoogleFonts.cairo(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                    color: theme.colorScheme.onSurface,
-                                  ),
-                                  decoration: InputDecoration(
-                                    counterText: '',
-                                    filled: true,
-                                    fillColor:
-                                        (isDark ? Colors.white : Colors.black)
-                                            .withOpacity(0.05),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                      borderSide: BorderSide.none,
+                              return Flexible(
+                                child: Container(
+                                  margin:
+                                      const EdgeInsets.symmetric(horizontal: 3),
+                                  height: 55,
+                                  child: TextFormField(
+                                    controller: _otpControllers[index],
+                                    focusNode: _focusNodes[index],
+                                    keyboardType: TextInputType.number,
+                                    textAlign: TextAlign.center,
+                                    maxLength: 1,
+                                    style: GoogleFonts.cairo(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: theme.colorScheme.onSurface,
                                     ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(14),
-                                      borderSide: BorderSide(
-                                        color: AppColors.primary,
-                                        width: 2,
+                                    decoration: InputDecoration(
+                                      counterText: '',
+                                      filled: true,
+                                      fillColor:
+                                          (isDark ? Colors.white : Colors.black)
+                                              .withOpacity(0.05),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                        borderSide: BorderSide(
+                                          color: AppColors.primary,
+                                          width: 2,
+                                        ),
                                       ),
                                     ),
+                                    onChanged: (value) {
+                                      if (value.isNotEmpty && index < 5) {
+                                        _focusNodes[index + 1].requestFocus();
+                                      } else if (value.isEmpty && index > 0) {
+                                        _focusNodes[index - 1].requestFocus();
+                                      }
+                                      // Auto-verify when all 6 digits entered
+                                      if (_otpCode.length == 6) {
+                                        _verifyOtp();
+                                      }
+                                    },
                                   ),
-                                  onChanged: (value) {
-                                    if (value.isNotEmpty && index < 5) {
-                                      _focusNodes[index + 1].requestFocus();
-                                    } else if (value.isEmpty && index > 0) {
-                                      _focusNodes[index - 1].requestFocus();
-                                    }
-                                    // Auto-verify when all 6 digits entered
-                                    if (_otpCode.length == 6) {
-                                      _verifyOtp();
-                                    }
-                                  },
                                 ),
                               );
                             }),

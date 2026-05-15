@@ -6,6 +6,7 @@ import 'package:overlay_support/overlay_support.dart';
 import 'firestore_service.dart';
 import 'auth_service.dart';
 import '../core/widgets/whatsapp_notification_ui.dart';
+import '../main.dart' show shownNotifications;
 
 class ChatNotificationService extends ChangeNotifier {
   final FirestoreService _firestoreService;
@@ -78,6 +79,17 @@ class ChatNotificationService extends ChangeNotifier {
   }
 
   void _showInAppNotification(String message, {String title = 'تنبيه جديد'}) {
+    // Deduplicate with the global set from main.dart
+    final contentKey = '${title}_$message';
+    if (shownNotifications.contains(contentKey)) {
+      return; // Already shown by FCM onMessage listener
+    }
+    shownNotifications.add(contentKey);
+
+    Future.delayed(const Duration(seconds: 30), () {
+      shownNotifications.remove(contentKey);
+    });
+
     showOverlayNotification(
       (context) {
         return WhatsAppNotificationUI(
