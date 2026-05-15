@@ -29,9 +29,9 @@ const AndroidNotificationChannel channel = AndroidNotificationChannel(
   'high_importance_channel',
   'إشعارات هامة',
   description: 'هذه القناة مخصصة لإشعارات التطبيق الهامة.',
-  importance: Importance.max,
-  playSound: true,
-  enableVibration: true,
+  importance: Importance.low,
+  playSound: false,
+  enableVibration: false,
 );
 
 @pragma('vm:entry-point')
@@ -125,27 +125,28 @@ Future<void> main() async {
         sound: true,
       );
 
-      await FirebaseMessaging.instance.subscribeToTopic('all');
       await FirebaseMessaging.instance.subscribeToTopic('all_users');
 
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        await FirebaseMessaging.instance.subscribeToTopic('android');
-      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
-        await FirebaseMessaging.instance.subscribeToTopic('ios');
-      }
+      // Unsubscribe from redundant topics to prevent duplicate notifications
+      // Keep only 'all_users' as the main topic
+      try {
+        await FirebaseMessaging.instance.unsubscribeFromTopic('all');
+        await FirebaseMessaging.instance.unsubscribeFromTopic('android');
+        await FirebaseMessaging.instance.unsubscribeFromTopic('ios');
+      } catch (_) {}
 
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         if (message.notification != null) {
-          // Deduplicate — use messageId as primary key, fallback to content
-          final contentKey = message.messageId ??
+          // Strong deduplication — ignore same content within 10 seconds
+          final contentKey =
               '${message.notification!.title}_${message.notification!.body}';
           if (shownNotifications.contains(contentKey)) {
-            return; // Already shown
+            return; // Already shown — skip duplicate
           }
           shownNotifications.add(contentKey);
 
-          // Clear old keys after 30 seconds to allow future notifications
-          Future.delayed(const Duration(seconds: 30), () {
+          // Keep the key for 10 seconds to block rapid duplicates
+          Future.delayed(const Duration(seconds: 10), () {
             shownNotifications.remove(contentKey);
           });
 

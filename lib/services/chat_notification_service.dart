@@ -36,39 +36,9 @@ class ChatNotificationService extends ChangeNotifier {
     _subscription?.cancel();
     _broadcastSubscription?.cancel();
 
-    final startTime = DateTime.now();
-
-    // 1. Private Chat Listener
-    _subscription = FirebaseFirestore.instance
-        .collection('chats')
-        .doc(userId)
-        .collection('messages')
-        .snapshots()
-        .listen((snapshot) {
-      for (var change in snapshot.docChanges) {
-        if (change.type == DocumentChangeType.added) {
-          // ignore: unnecessary_cast
-          final data = change.doc.data() as Map<String, dynamic>?;
-          if (data == null) continue;
-          final isAdmin = data['isAdmin'] == true;
-          final text = data['text']?.toString() ?? '';
-          final createdAt = (data['createdAt'] as Timestamp?)?.toDate();
-
-          if (isAdmin) {
-            bool isNew = createdAt != null
-                ? createdAt
-                    .isAfter(startTime.subtract(const Duration(seconds: 10)))
-                : true;
-            if (isNew) {
-              _showInAppNotification(text, title: 'رسالة جديدة من الدعم');
-            }
-          }
-        }
-      }
-    });
-
-    // الإشعارات بتوصل عبر FCM push — مش محتاجين listener تاني هنا
-    // ده بيمنع تكرار الإشعار مرتين
+    // FCM push handles all notifications.
+    // Firestore listener is only for real-time chat UI updates,
+    // NOT for showing notifications (that caused duplicates).
   }
 
   void _stopListening() {
