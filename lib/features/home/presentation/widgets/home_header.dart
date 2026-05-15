@@ -124,25 +124,22 @@ class _NotifButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final userId = context.read<AuthService>().currentUser?.uid;
 
-    // Only count notifications for this user (personal + global 'all')
+    // Only count notifications for this user from their subcollection
     final stream = userId != null
         ? FirebaseFirestore.instance
+            .collection('users')
+            .doc(userId)
             .collection('notifications')
-            .where('userId', whereIn: [userId, 'all']).snapshots()
-        : FirebaseFirestore.instance
-            .collection('notifications')
-            .where('userId', isEqualTo: 'all')
-            .snapshots();
+            .where('isRead', isEqualTo: false)
+            .snapshots()
+        : null;
 
-    return StreamBuilder<QuerySnapshot>(
+    return StreamBuilder<QuerySnapshot?>(
       stream: stream,
       builder: (context, snapshot) {
         int unreadCount = 0;
-        if (snapshot.hasData) {
-          for (final doc in snapshot.data!.docs) {
-            final data = doc.data() as Map<String, dynamic>;
-            if (data['isRead'] != true) unreadCount++;
-          }
+        if (snapshot.hasData && snapshot.data != null) {
+          unreadCount = snapshot.data!.docs.length;
         }
         final hasUnread = unreadCount > 0;
 

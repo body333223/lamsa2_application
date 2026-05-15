@@ -52,6 +52,28 @@ class AppStrings {
   String get passwordNotMatch =>
       isArabic ? 'كلمة المرور ما تطابقت' : 'Passwords do not match';
 
+  // ── Phone Auth ───────────────────────────────────────
+  String get phoneNumber => isArabic ? 'رقم الهاتف' : 'Phone Number';
+  String get enterPhoneNumber =>
+      isArabic ? 'أدخلي رقم الهاتف' : 'Enter your phone number';
+  String get invalidPhoneNumber =>
+      isArabic ? 'رقم الهاتف غير صحيح' : 'Invalid phone number';
+  String get sendOtp => isArabic ? 'إرسال رمز التحقق' : 'Send OTP';
+  String get otpVerification =>
+      isArabic ? 'التحقق من الرمز' : 'OTP Verification';
+  String get enterOtp =>
+      isArabic ? 'أدخلي رمز التحقق' : 'Enter verification code';
+  String get otpSentTo => isArabic ? 'تم إرسال الرمز إلى' : 'Code sent to';
+  String get verifyOtp => isArabic ? 'تحقق' : 'Verify';
+  String get resendOtp => isArabic ? 'إعادة إرسال الرمز' : 'Resend Code';
+  String get otpExpired => isArabic ? 'انتهت صلاحية الرمز' : 'Code expired';
+  String get phoneRegisterSubtitle => isArabic
+      ? 'أدخلي رقم هاتفك عشان نرسل لك رمز التحقق'
+      : 'Enter your phone number to receive a verification code';
+  String get secondsRemaining => isArabic ? 'ثانية' : 'seconds';
+  String get didNotReceiveCode =>
+      isArabic ? 'ما وصلك الرمز؟' : "Didn't receive the code?";
+
   // ── Navigation ───────────────────────────────────────
   String get home => isArabic ? 'الرئيسية' : 'Home';
   String get myBookings => isArabic ? 'حجوزاتي' : 'My Bookings';

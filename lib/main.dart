@@ -45,6 +45,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
 
+// Deduplication: prevent showing same notification multiple times
+final Set<String> _shownNotifications = {};
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -133,6 +136,19 @@ Future<void> main() async {
 
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
         if (message.notification != null) {
+          // Deduplicate — use content as key, ignore repeats
+          final contentKey =
+              '${message.notification!.title}_${message.notification!.body}';
+          if (_shownNotifications.contains(contentKey)) {
+            return; // Already shown
+          }
+          _shownNotifications.add(contentKey);
+
+          // Clear old keys after 30 seconds to allow future notifications
+          Future.delayed(const Duration(seconds: 30), () {
+            _shownNotifications.remove(contentKey);
+          });
+
           showOverlayNotification((context) {
             return WhatsAppNotificationUI(
               title: message.notification!.title ?? 'إشعار جديد',
@@ -142,26 +158,6 @@ Future<void> main() async {
               },
             );
           }, duration: const Duration(seconds: 4));
-
-          RemoteNotification? notification = message.notification;
-          AndroidNotification? android = message.notification?.android;
-          if (notification != null && android != null) {
-            flutterLocalNotificationsPlugin.show(
-              notification.hashCode,
-              notification.title,
-              notification.body,
-              NotificationDetails(
-                android: AndroidNotificationDetails(
-                  channel.id,
-                  channel.name,
-                  channelDescription: channel.description,
-                  icon: android.smallIcon,
-                  priority: Priority.high,
-                  importance: Importance.max,
-                ),
-              ),
-            );
-          }
         }
       });
     } catch (e) {

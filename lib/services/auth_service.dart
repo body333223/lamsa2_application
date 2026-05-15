@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -156,6 +158,113 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  // ── Phone Auth ──────────────────────────────────────────
+
+  String? _verificationId;
+  int? _resendToken;
+
+  String? get verificationId => _verificationId;
+
+  Future<void> verifyPhoneNumber({
+    required String phoneNumber,
+    required Function(String verificationId) onCodeSent,
+    required Function(String error) onError,
+    Function(PhoneAuthCredential credential)? onAutoVerified,
+  }) async {
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      await _auth.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Auto-verification (Android only)
+          if (onAutoVerified != null) {
+            onAutoVerified(credential);
+          } else {
+            await _auth.signInWithCredential(credential);
+            isLoading = false;
+            notifyListeners();
+          }
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          isLoading = false;
+          notifyListeners();
+          onError(_mapPhoneAuthError(e));
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          _verificationId = verificationId;
+          _resendToken = resendToken;
+          isLoading = false;
+          notifyListeners();
+          onCodeSent(verificationId);
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          _verificationId = verificationId;
+        },
+        forceResendingToken: _resendToken,
+      );
+    } catch (e) {
+      isLoading = false;
+      notifyListeners();
+      onError('حدث خطأ أثناء إرسال رمز التحقق');
+    }
+  }
+
+  Future<void> verifyOtpAndSignIn({
+    required String otp,
+    String? name,
+  }) async {
+    if (_verificationId == null) {
+      throw 'لم يتم إرسال رمز التحقق بعد';
+    }
+
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      final credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId!,
+        smsCode: otp,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+
+      // Set display name if provided (first time registration)
+      if (name != null && name.trim().isNotEmpty) {
+        await userCredential.user?.updateDisplayName(name.trim());
+        await userCredential.user?.reload();
+      }
+    } on FirebaseAuthException catch (e) {
+      throw _mapPhoneAuthError(e);
+    } catch (_) {
+      throw 'حدث خطأ أثناء التحقق من الرمز';
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  String _mapPhoneAuthError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-phone-number':
+        return 'رقم الهاتف غير صحيح';
+      case 'too-many-requests':
+        return 'تمت محاولات كثيرة، حاولي لاحقًا';
+      case 'invalid-verification-code':
+        return 'رمز التحقق غير صحيح';
+      case 'session-expired':
+        return 'انتهت صلاحية الرمز، أعيدي الإرسال';
+      case 'quota-exceeded':
+        return 'تم تجاوز الحد المسموح، حاولي لاحقًا';
+      case 'network-request-failed':
+        return 'تحقق من اتصال الإنترنت';
+      default:
+        return e.message ?? 'حدث خطأ في التحقق';
+    }
+  }
+
   // ── Logout ────────────────────────────────────────────
 
   Future<void> logout() async {
@@ -163,6 +272,19 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // 1. مسح الـ FCM token من Firestore قبل الـ signOut
+      final uid = _auth.currentUser?.uid;
+      if (uid != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .update({'fcmToken': FieldValue.delete()});
+      }
+
+      // 2. مسح الـ token من الجهاز
+      await FirebaseMessaging.instance.deleteToken();
+
+      // 3. Sign out
       await _googleSignIn.signOut();
       await _auth.signOut();
     } catch (_) {

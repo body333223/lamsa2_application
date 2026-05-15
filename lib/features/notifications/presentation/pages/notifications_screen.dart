@@ -65,76 +65,45 @@ class NotificationsScreen extends StatelessWidget {
               left: -100,
               child: GlowOrb(
                   size: 400, color: AppColors.accent.withOpacity(0.08))),
-          // Listen to both collections — filtered by user
+          // Listen ONLY to user's subcollection (no legacy global notifications)
           StreamBuilder<QuerySnapshot>(
             stream: _getFilteredNotifications(context),
-            builder: (context, snapshot1) {
-              return StreamBuilder<QuerySnapshot>(
-                stream: _getFilteredLegacyNotifications(context),
-                builder: (context, snapshot2) {
-                  if (snapshot1.connectionState == ConnectionState.waiting &&
-                      snapshot2.connectionState == ConnectionState.waiting) {
-                    return ListView.builder(
-                      padding: EdgeInsets.fromLTRB(
-                          20, MediaQuery.of(context).padding.top + 100, 20, 40),
-                      itemCount: 4,
-                      itemBuilder: (_, __) => _ShimmerNotification(),
-                    );
-                  }
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return ListView.builder(
+                  padding: EdgeInsets.fromLTRB(
+                      20, MediaQuery.of(context).padding.top + 100, 20, 40),
+                  itemCount: 4,
+                  itemBuilder: (_, __) => _ShimmerNotification(),
+                );
+              }
 
-                  if (snapshot1.hasError && snapshot2.hasError) {
-                    return _buildEmptyState(
-                        context,
-                        isArabic ? 'صار خطأ' : 'Error',
-                        Icons.warning_amber_rounded);
-                  }
+              if (snapshot.hasError) {
+                return _buildEmptyState(context, isArabic ? 'صار خطأ' : 'Error',
+                    Icons.warning_amber_rounded);
+              }
 
-                  final docs1 = snapshot1.data?.docs ?? [];
-                  final docs2 = snapshot2.data?.docs ?? [];
-                  final allDocs = [...docs1, ...docs2];
+              final docs = snapshot.data?.docs ?? [];
 
-                  if (allDocs.isEmpty) {
-                    return _buildEmptyState(context, s.noNotifications,
-                        Icons.notifications_off_outlined);
-                  }
+              if (docs.isEmpty) {
+                return _buildEmptyState(context, s.noNotifications,
+                    Icons.notifications_off_outlined);
+              }
 
-                  // Sort by time (newest first) — client side
-                  allDocs.sort((a, b) {
-                    final dataA = a.data() as Map<String, dynamic>;
-                    final dataB = b.data() as Map<String, dynamic>;
-                    final timeA = _getTime(dataA);
-                    final timeB = _getTime(dataB);
-                    return timeB.compareTo(timeA);
-                  });
-
-                  // Deduplicate by title+body
-                  final seen = <String>{};
-                  final uniqueDocs = <QueryDocumentSnapshot>[];
-                  for (final doc in allDocs) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final key = '${data['title'] ?? ''}_${data['body'] ?? ''}';
-                    if (!seen.contains(key)) {
-                      seen.add(key);
-                      uniqueDocs.add(doc);
-                    }
-                  }
-
-                  return ListView.builder(
-                    padding: EdgeInsets.fromLTRB(
-                        20, MediaQuery.of(context).padding.top + 100, 20, 120),
-                    itemCount: uniqueDocs.length,
-                    itemBuilder: (context, i) {
-                      final data = uniqueDocs[i].data() as Map<String, dynamic>;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: NotificationTile(
-                          title: data['title'] ?? '',
-                          body: data['body'] ?? '',
-                          imageUrl: data['imageUrl'],
-                          time: _getTimeNullable(data),
-                        ),
-                      );
-                    },
+              return ListView.builder(
+                padding: EdgeInsets.fromLTRB(
+                    20, MediaQuery.of(context).padding.top + 100, 20, 120),
+                itemCount: docs.length,
+                itemBuilder: (context, i) {
+                  final data = docs[i].data() as Map<String, dynamic>;
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: NotificationTile(
+                      title: data['title'] ?? '',
+                      body: data['body'] ?? '',
+                      imageUrl: data['imageUrl'],
+                      time: _getTimeNullable(data),
+                    ),
                   );
                 },
               );
@@ -145,40 +114,19 @@ class NotificationsScreen extends StatelessWidget {
     );
   }
 
-  /// Get notifications filtered by current user
+  /// Get notifications from user's subcollection
   Stream<QuerySnapshot> _getFilteredNotifications(BuildContext context) {
     final userId = context.read<AuthService>().currentUser?.uid;
     if (userId == null) {
-      // لو مفيش مستخدم، نعرض العامة بس
-      return FirebaseFirestore.instance
-          .collection('notifications')
-          .where('userId', isEqualTo: 'all')
-          .snapshots();
+      // لو مفيش مستخدم — مفيش إشعارات
+      return const Stream.empty();
     }
     return FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
         .collection('notifications')
-        .where('userId', whereIn: [userId, 'all']).snapshots();
-  }
-
-  /// Get legacy notifications filtered by current user
-  Stream<QuerySnapshot> _getFilteredLegacyNotifications(BuildContext context) {
-    final userId = context.read<AuthService>().currentUser?.uid;
-    if (userId == null) {
-      return FirebaseFirestore.instance
-          .collection('Notification')
-          .where('userId', whereIn: ['all', '']).snapshots();
-    }
-    return FirebaseFirestore.instance
-        .collection('Notification')
-        .where('userId', whereIn: [userId, 'all', '']).snapshots();
-  }
-
-  DateTime _getTime(Map<String, dynamic> data) {
-    final sentAt = data['sentAt'];
-    final createdAt = data['createdAt'];
-    if (sentAt is Timestamp) return sentAt.toDate();
-    if (createdAt is Timestamp) return createdAt.toDate();
-    return DateTime(2000);
+        .orderBy('createdAt', descending: true)
+        .snapshots();
   }
 
   DateTime? _getTimeNullable(Map<String, dynamic> data) {
@@ -191,31 +139,21 @@ class NotificationsScreen extends StatelessWidget {
 
   Future<void> _markAllRead(BuildContext context) async {
     final userId = context.read<AuthService>().currentUser?.uid;
+    if (userId == null) return;
+
     final batch = FirebaseFirestore.instance.batch();
 
-    // Mark notifications for this user as read
-    final snap1 = await FirebaseFirestore.instance
+    // Mark all in user's subcollection as read
+    final snap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
         .collection('notifications')
-        .where('userId', whereIn: [userId ?? '', 'all']).get();
-    for (final doc in snap1.docs) {
-      final data = doc.data();
-      if (data['isRead'] != true) {
-        batch.update(doc.reference, {'isRead': true});
-      }
-    }
+        .where('isRead', isEqualTo: false)
+        .get();
 
-    // Same for legacy collection
-    try {
-      final snap2 = await FirebaseFirestore.instance
-          .collection('Notification')
-          .where('userId', whereIn: [userId ?? '', 'all', '']).get();
-      for (final doc in snap2.docs) {
-        final data = doc.data();
-        if (data['isRead'] != true) {
-          batch.update(doc.reference, {'isRead': true});
-        }
-      }
-    } catch (_) {}
+    for (final doc in snap.docs) {
+      batch.update(doc.reference, {'isRead': true});
+    }
 
     await batch.commit();
   }

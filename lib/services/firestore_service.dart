@@ -1,6 +1,7 @@
 // ignore_for_file: body_might_complete_normally_nullable
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:lamsa/models/service_model.dart' show ServiceModel;
 
 class FirestoreService {
@@ -102,6 +103,12 @@ class FirestoreService {
     await _db.collection('bookings').doc(bookingId).update({
       'status': status,
     });
+
+    // إرسال إشعار لصاحب الحجز فقط
+    await sendBookingStatusNotification(
+      bookingId: bookingId,
+      newStatus: status,
+    );
   }
 
   Future<void> confirmPayment(String bookingId) async {
@@ -109,6 +116,11 @@ class FirestoreService {
       'status': 'confirmed',
       'paymentStatus': 'paid',
     });
+
+    await sendBookingStatusNotification(
+      bookingId: bookingId,
+      newStatus: 'confirmed',
+    );
   }
 
   Future<void> requestCancelBooking(String bookingId) async {
@@ -260,22 +272,25 @@ class FirestoreService {
   // 🔔 NOTIFICATIONS SYSTEM
   // =====================================================
 
+  /// جلب إشعارات المستخدم من الـ subcollection الخاصة بيه
   Stream<QuerySnapshot> getNotifications(String userId) {
-    // جلب الإشعارات الخاصة بالمستخدم + الإشعارات العامة
     return _db
+        .collection('users')
+        .doc(userId)
         .collection('notifications')
-        .where('userId', whereIn: [userId, 'all'])
-        .orderBy('sentAt', descending: true)
+        .orderBy('createdAt', descending: true)
         .snapshots();
   }
 
+  /// إرسال إشعار — يحفظ في subcollection المستخدم فقط
+  /// الـ Cloud Function هتتفعل من الـ subcollection وتبعت الـ push
   Future<void> sendNotification({
     required String title,
     required String body,
     String userId = "all",
     String target = "all",
   }) async {
-    await _db.collection('notifications').add({
+    final notifData = {
       'title': title,
       'body': body,
       'target': target,
@@ -283,13 +298,87 @@ class FirestoreService {
       'userId': userId,
       'createdAt': FieldValue.serverTimestamp(),
       'isRead': false,
-    });
+    };
+
+    // حفظ في subcollection المستخدم فقط (الـ Cloud Function تتفعل منها)
+    if (userId != 'all') {
+      await _db
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .add(notifData);
+    } else {
+      // إشعار عام — يبعت لـ topic 'all' (الـ Cloud Function تستخدم target)
+      await _db.collection('notifications').add(notifData);
+    }
   }
 
-  Future<void> markNotificationAsRead(String id) async {
-    await _db.collection('notifications').doc(id).update({
-      'isRead': true,
-    });
+  /// Mark notification as read in user's subcollection
+  Future<void> markNotificationAsRead(String notifId, {String? userId}) async {
+    // Try the old collection for backward compatibility
+    try {
+      await _db.collection('notifications').doc(notifId).update({
+        'isRead': true,
+      });
+    } catch (_) {}
+
+    // Mark in user subcollection
+    if (userId != null) {
+      try {
+        await _db
+            .collection('users')
+            .doc(userId)
+            .collection('notifications')
+            .doc(notifId)
+            .update({'isRead': true});
+      } catch (_) {}
+    }
+  }
+
+  /// Send notification to the booking owner when status changes
+  Future<void> sendBookingStatusNotification({
+    required String bookingId,
+    required String newStatus,
+  }) async {
+    try {
+      final bookingDoc = await _db.collection('bookings').doc(bookingId).get();
+      if (!bookingDoc.exists) return;
+
+      final data = bookingDoc.data()!;
+      final bookingUserId = data['userId'] as String? ?? '';
+      final serviceName = data['serviceName'] as String? ?? '';
+
+      if (bookingUserId.isEmpty) return;
+
+      String title;
+      String body;
+
+      switch (newStatus) {
+        case 'confirmed':
+          title = 'تم تأكيد حجزك ✓';
+          body = 'حجزك لخدمة $serviceName تم تأكيده بنجاح';
+          break;
+        case 'cancelled':
+          title = 'تم إلغاء الحجز';
+          body = 'حجزك لخدمة $serviceName تم إلغاؤه';
+          break;
+        case 'completed':
+          title = 'تم إكمال الخدمة ✨';
+          body = 'نتمنى إنك استمتعتي بخدمة $serviceName';
+          break;
+        default:
+          title = 'تحديث على حجزك';
+          body = 'حالة حجزك لخدمة $serviceName تغيّرت';
+      }
+
+      await sendNotification(
+        title: title,
+        body: body,
+        userId: bookingUserId,
+      );
+    } catch (e) {
+      debugPrint("Error sending booking notification: $e");
+    }
   }
 
   // =====================================================

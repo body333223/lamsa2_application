@@ -58,41 +58,16 @@ class ChatNotificationService extends ChangeNotifier {
                 ? createdAt
                     .isAfter(startTime.subtract(const Duration(seconds: 10)))
                 : true;
-            if (isNew)
+            if (isNew) {
               _showInAppNotification(text, title: 'رسالة جديدة من الدعم');
+            }
           }
         }
       }
     });
 
-    // 2. Global Broadcast Listener — only for this user or public notifications
-    _broadcastSubscription = FirebaseFirestore.instance
-        .collection('notifications')
-        .where('userId', whereIn: [userId, 'all'])
-        .orderBy('sentAt', descending: true)
-        .limit(1)
-        .snapshots()
-        .listen((snapshot) {
-          for (var change in snapshot.docChanges) {
-            if (change.type == DocumentChangeType.added) {
-              final data = change.doc.data();
-              if (data == null) continue;
-
-              final title = data['title']?.toString() ?? 'إشعار جديد';
-              final body = data['body']?.toString() ?? '';
-              final sentAt = (data['sentAt'] as Timestamp?)?.toDate();
-
-              bool isNew = sentAt != null
-                  ? sentAt
-                      .isAfter(startTime.subtract(const Duration(seconds: 10)))
-                  : true;
-
-              if (isNew) {
-                _showInAppNotification(body, title: title);
-              }
-            }
-          }
-        });
+    // الإشعارات بتوصل عبر FCM push — مش محتاجين listener تاني هنا
+    // ده بيمنع تكرار الإشعار مرتين
   }
 
   void _stopListening() {

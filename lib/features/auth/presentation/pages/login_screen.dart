@@ -12,7 +12,7 @@ import '../../../home/presentation/pages/home_screen.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/auth_header.dart';
 import '../widgets/social_login_buttons.dart';
-import 'register_screen.dart';
+import 'phone_register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -217,7 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           onTap: () => Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (_) => const RegisterScreen()),
+                                builder: (_) => const PhoneRegisterScreen()),
                           ),
                           child: Text(
                             s.createAccount,

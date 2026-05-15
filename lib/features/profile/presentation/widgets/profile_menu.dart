@@ -312,7 +312,7 @@ class ProfileMenu extends StatelessWidget {
       builder: (ctx) {
         final theme = Theme.of(ctx);
         final isDark = theme.brightness == Brightness.dark;
-        final actionColor = AppColors.error;
+        const actionColor = AppColors.error;
 
         return Dialog(
           backgroundColor: isDark ? const Color(0xFF1E1C20) : Colors.white,
