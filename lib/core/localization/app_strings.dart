@@ -4,9 +4,9 @@ import '../../services/locale_service.dart';
 
 class AppStrings {
   final BuildContext context;
-  AppStrings(this.context);
+  final bool isArabic;
 
-  bool get isArabic => context.watch<LocaleService>().isArabic;
+  AppStrings(this.context) : isArabic = context.read<LocaleService>().isArabic;
 
   // ── App ──────────────────────────────────────────────
   String get appName => isArabic ? 'لمسة' : 'Lamsa';

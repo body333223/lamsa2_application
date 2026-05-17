@@ -6,20 +6,22 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/smart_image.dart';
 import '../../../../services/auth_service.dart';
-import '../../../../services/image_upload_service.dart';
 import '../../../../services/locale_service.dart';
 import '../../../../services/theme_service.dart';
 import '../../../auth/presentation/pages/login_screen.dart';
+import '../../../favorites/presentation/pages/favorites_screen.dart';
 import '../../../support/presentation/pages/support_chat_screen.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final authService = context.watch<AuthService>();
+    final authService = context.read<AuthService>();
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final s = AppStrings(context);
@@ -50,10 +52,24 @@ class ProfileScreen extends StatelessWidget {
                   isDark: isDark,
                   children: [
                     _ProfileTile(
-                      icon: Icons.edit_rounded,
+                      icon: Icons.person_rounded,
                       iconColor: AppColors.primary,
                       title: s.editProfile,
-                      onTap: () => _showEditNameDialog(context, name, s),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const EditProfileScreen()),
+                      ),
+                    ),
+                    _ProfileTile(
+                      icon: Icons.favorite_rounded,
+                      iconColor: const Color(0xFFE25858),
+                      title: s.isArabic ? 'المفضلة' : 'Favorites',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const FavoritesScreen()),
+                      ),
                     ),
                     _ProfileTile(
                       icon: Icons.delete_outline_rounded,
@@ -189,7 +205,10 @@ class ProfileScreen extends StatelessWidget {
         children: [
           // Avatar
           GestureDetector(
-            onTap: () => _pickPhoto(context),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+            ),
             child: Stack(
               children: [
                 Container(
@@ -364,112 +383,6 @@ class ProfileScreen extends StatelessWidget {
     return result;
   }
 
-  Future<void> _pickPhoto(BuildContext context) async {
-    try {
-      final uploadService = context.read<ImageUploadService>();
-      final authService = context.read<AuthService>();
-      final uid = authService.currentUser?.uid;
-      if (uid == null) return;
-
-      final url = await uploadService.pickAndUploadImage(
-        folder: 'profile_photos',
-        fileName: '$uid.jpg',
-        maxWidth: 500,
-        quality: 80,
-      );
-
-      if (url != null && context.mounted) {
-        await authService.updateUserPhoto(url);
-      }
-    } catch (e) {
-      debugPrint('Error picking photo: $e');
-    }
-  }
-
-  void _showEditNameDialog(
-      BuildContext context, String currentName, AppStrings s) {
-    final controller = TextEditingController(text: currentName);
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: isDark ? const Color(0xFF1E1C20) : Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                s.editName,
-                style: GoogleFonts.cairo(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 20),
-              TextField(
-                controller: controller,
-                style: GoogleFonts.cairo(fontSize: 15),
-                decoration: InputDecoration(
-                  hintText: s.yourName,
-                  hintStyle: GoogleFonts.cairo(),
-                  filled: true,
-                  fillColor:
-                      (isDark ? Colors.white : Colors.black).withOpacity(0.05),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide.none,
-                  ),
-                  prefixIcon: Icon(Icons.person_rounded,
-                      color: AppColors.primary.withOpacity(0.6)),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      child: Text(s.cancel,
-                          style:
-                              GoogleFonts.cairo(fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final newName = controller.text.trim();
-                        if (newName.isNotEmpty) {
-                          await ctx.read<AuthService>().updateUserName(newName);
-                          if (ctx.mounted) Navigator.pop(ctx);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(s.save,
-                          style:
-                              GoogleFonts.cairo(fontWeight: FontWeight.w700)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   void _showDeleteAccountDialog(BuildContext context, AppStrings s) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -530,18 +443,12 @@ class ProfileScreen extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: () async {
                         Navigator.pop(ctx);
-                        // TODO: Implement account deletion
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              s.isArabic
-                                  ? 'تم إرسال طلب حذف الحساب'
-                                  : 'Account deletion request sent',
-                              style: GoogleFonts.cairo(),
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
+
+                        AppSnackbar.show(context,
+                            message: s.isArabic
+                                ? 'تم إرسال طلب حذف الحساب'
+                                : 'Account deletion request sent',
+                            type: SnackType.info);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.error,

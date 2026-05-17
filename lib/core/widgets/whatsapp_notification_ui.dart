@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 
+/// Premium in-app notification overlay.
+/// Appears at the top of the screen with glassmorphism effect.
 class WhatsAppNotificationUI extends StatelessWidget {
   final String title;
   final String message;
@@ -27,53 +29,67 @@ class WhatsAppNotificationUI extends StatelessWidget {
         child: GestureDetector(
           onTap: onTap,
           child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(20),
               child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
                 child: Container(
                   padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                   decoration: BoxDecoration(
                     color: isDark
-                        ? Colors.black.withOpacity(0.7)
-                        : Colors.white.withOpacity(0.85),
-                    borderRadius: BorderRadius.circular(16),
+                        ? const Color(0xFF1E1C20).withOpacity(0.92)
+                        : Colors.white.withOpacity(0.92),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: isDark
-                          ? Colors.white.withOpacity(0.1)
-                          : Colors.black.withOpacity(0.05),
+                          ? Colors.white.withOpacity(0.08)
+                          : AppColors.primary.withOpacity(0.12),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.12),
-                        blurRadius: 20,
-                        offset: const Offset(0, 6),
+                        color: isDark
+                            ? Colors.black.withOpacity(0.4)
+                            : AppColors.primary.withOpacity(0.08),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
                       ),
                     ],
                   ),
                   child: Row(
                     children: [
-                      // App icon
+                      // App icon with gradient
                       Container(
-                        width: 42,
-                        height: 42,
+                        width: 46,
+                        height: 46,
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [AppColors.primary, AppColors.primaryDark],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                           ),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
                         child: const Icon(
-                          Icons.auto_awesome,
+                          Icons.auto_awesome_rounded,
                           color: Colors.white,
-                          size: 20,
+                          size: 22,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 14),
                       // Content
                       Expanded(
                         child: Column(
@@ -82,34 +98,52 @@ class WhatsAppNotificationUI extends StatelessWidget {
                           children: [
                             Row(
                               children: [
-                                Expanded(
-                                  child: Text(
-                                    title,
-                                    style: GoogleFonts.cairo(
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 14,
-                                      color: isDark
-                                          ? Colors.white
-                                          : AppColors.textDark,
-                                      height: 1.2,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                Text(
+                                  'لمسة',
+                                  style: GoogleFonts.cairo(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 11,
+                                    color: AppColors.primary,
                                   ),
                                 ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  width: 4,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: isDark
+                                        ? Colors.white24
+                                        : Colors.black12,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
                                 Text(
                                   'الآن',
                                   style: GoogleFonts.cairo(
                                     fontSize: 11,
                                     color: isDark
-                                        ? Colors.white54
+                                        ? Colors.white38
                                         : AppColors.textLight,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 3),
+                            const SizedBox(height: 4),
+                            Text(
+                              title,
+                              style: GoogleFonts.cairo(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14,
+                                color:
+                                    isDark ? Colors.white : AppColors.textDark,
+                                height: 1.2,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
                             Text(
                               message,
                               maxLines: 2,
@@ -117,13 +151,21 @@ class WhatsAppNotificationUI extends StatelessWidget {
                               style: GoogleFonts.cairo(
                                 fontSize: 13,
                                 color: isDark
-                                    ? Colors.white70
+                                    ? Colors.white60
                                     : AppColors.textMedium,
                                 height: 1.3,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Chevron
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 14,
+                        color: isDark ? Colors.white24 : Colors.black12,
                       ),
                     ],
                   ),

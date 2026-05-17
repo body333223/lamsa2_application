@@ -30,50 +30,58 @@ class HomeBottomNav extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(items.length, (index) {
           final isActive = currentIndex == index;
-          return GestureDetector(
-            onTap: () => onTap(index),
-            behavior: HitTestBehavior.opaque,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? AppColors.primary.withOpacity(0.15)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedScale(
-                    scale: isActive ? 1.1 : 1.0,
-                    duration: const Duration(milliseconds: 300),
-                    child: Icon(
-                      items[index].$2,
-                      color: isActive
-                          ? AppColors.primary
-                          : AppColors.textMedium.withOpacity(0.6),
-                      size: 26,
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => onTap(index),
+              borderRadius: BorderRadius.circular(20),
+              splashColor: AppColors.primary.withOpacity(0.1),
+              highlightColor: AppColors.primary.withOpacity(0.05),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? AppColors.primary.withOpacity(0.12)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedScale(
+                      scale: isActive ? 1.15 : 1.0,
+                      duration: const Duration(milliseconds: 300),
+                      child: Icon(
+                        items[index].$2,
+                        color: isActive
+                            ? AppColors.primary
+                            : AppColors.textMedium.withOpacity(0.5),
+                        size: 24,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  AnimatedOpacity(
-                    opacity: isActive ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 300),
-                    child: isActive
-                        ? Text(
-                            items[index].$1,
-                            style: GoogleFonts.cairo(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
-                              letterSpacing: 0.5,
-                            ),
-                          )
-                        : const SizedBox.shrink(),
-                  ),
-                ],
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      height: isActive ? 4 : 0,
+                    ),
+                    AnimatedOpacity(
+                      opacity: isActive ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 200),
+                      child: isActive
+                          ? Text(
+                              items[index].$1,
+                              style: GoogleFonts.cairo(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.primary,
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ),
               ),
             ),
           );

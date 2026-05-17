@@ -9,6 +9,7 @@ import '../../../../services/auth_service.dart';
 import '../../../../services/locale_service.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glow_orb.dart';
 import '../../../home/presentation/pages/home_screen.dart';
 
@@ -92,15 +93,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString(), style: GoogleFonts.cairo()),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      AppSnackbar.show(context, message: e.toString(), type: SnackType.error);
     }
   }
 
@@ -113,32 +106,14 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       onCodeSent: (_) {
         _startCountdown();
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              context.read<LocaleService>().isArabic
-                  ? 'تم إعادة إرسال الرمز'
-                  : 'Code resent successfully',
-              style: GoogleFonts.cairo(),
-            ),
-            backgroundColor: AppColors.primary,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        final isArabic = context.read<LocaleService>().isArabic;
+        AppSnackbar.show(context,
+            message: isArabic ? 'تم إعادة إرسال الرمز' : 'Code resent',
+            type: SnackType.success);
       },
       onError: (error) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error, style: GoogleFonts.cairo()),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        AppSnackbar.show(context, message: error, type: SnackType.error);
       },
     );
   }

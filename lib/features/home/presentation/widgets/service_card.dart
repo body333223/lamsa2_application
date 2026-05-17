@@ -131,17 +131,21 @@ class ServiceCard extends StatelessWidget {
                         isArabic ? TextDirection.rtl : TextDirection.ltr,
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        '${service.price.toInt()} ${s.egp}',
-                        style: GoogleFonts.cairo(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.primary,
+                      Flexible(
+                        child: Text(
+                          '${service.price.toInt()} ${s.egp}',
+                          style: GoogleFonts.cairo(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.primary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 10),
+                            horizontal: 18, vertical: 9),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [AppColors.primaryDark, AppColors.primary],

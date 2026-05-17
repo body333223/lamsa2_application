@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../models/booking_model.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../services/firestore_service.dart';
@@ -26,6 +27,8 @@ class BookingActionButtons extends StatefulWidget {
 }
 
 class _BookingActionButtonsState extends State<BookingActionButtons> {
+  bool _isLoading = false;
+
   @override
   Widget build(BuildContext context) {
     final s = AppStrings(context);
@@ -35,31 +38,51 @@ class _BookingActionButtonsState extends State<BookingActionButtons> {
     return Column(
       children: [
         if (widget.canCancel) ...[
-          AppTheme.buildGlassButton(
-            onPressed: () => _handleSupportRequest(s, 'postpone', theme),
+          // Postpone button
+          _ActionButton(
             label: 'تقديم طلب تأجيل',
-            gradientStart: AppColors.primary,
-            gradientEnd: AppColors.primaryLight,
+            icon: Icons.schedule_rounded,
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            onPressed: _isLoading
+                ? null
+                : () => _handleSupportRequest(s, 'postpone', theme),
           ),
-          const SizedBox(height: 16),
-          AppTheme.buildGlassButton(
-            onPressed: () => _handleSupportRequest(s, 'cancel', theme),
+          const SizedBox(height: 12),
+
+          // Cancel button
+          _ActionButton(
             label: s.cancelBooking,
-            gradientStart: const Color(0xFFC04E4A),
-            gradientEnd: const Color(0xFFE57373),
+            icon: Icons.cancel_outlined,
+            backgroundColor: isDark
+                ? AppColors.error.withOpacity(0.15)
+                : AppColors.error.withOpacity(0.08),
+            foregroundColor: AppColors.error,
+            borderColor: AppColors.error.withOpacity(0.3),
+            onPressed: _isLoading
+                ? null
+                : () => _handleSupportRequest(s, 'cancel', theme),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
         ],
-        AppTheme.buildGlassButton(
+
+        // Contact support button
+        _ActionButton(
+          label: s.contactSupport,
+          icon: Icons.chat_bubble_outline_rounded,
+          backgroundColor: isDark
+              ? Colors.white.withOpacity(0.06)
+              : Colors.black.withOpacity(0.04),
+          foregroundColor: theme.colorScheme.onSurface.withOpacity(0.8),
+          borderColor: isDark
+              ? Colors.white.withOpacity(0.1)
+              : Colors.black.withOpacity(0.08),
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute(
               builder: (_) => const SupportChatScreen(userId: ''),
             ),
           ),
-          label: s.contactSupport,
-          gradientStart: isDark ? Colors.white24 : Colors.black87,
-          gradientEnd: isDark ? Colors.white10 : Colors.black54,
         ),
       ],
     );
@@ -70,7 +93,6 @@ class _BookingActionButtonsState extends State<BookingActionButtons> {
     final isArabic = s.isArabic;
     final actionColor = type == 'cancel' ? AppColors.error : AppColors.primary;
 
-    // Capture services before dialog
     final authService = context.read<AuthService>();
     final firestoreService = context.read<FirestoreService>();
 
@@ -81,7 +103,7 @@ class _BookingActionButtonsState extends State<BookingActionButtons> {
         return Dialog(
           backgroundColor: isDark ? const Color(0xFF1E1C20) : Colors.white,
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           child: Padding(
             padding: const EdgeInsets.all(28),
             child: Column(
@@ -169,6 +191,7 @@ class _BookingActionButtonsState extends State<BookingActionButtons> {
     );
 
     if (confirmed == true && mounted) {
+      setState(() => _isLoading = true);
       try {
         final userId = authService.currentUser?.uid ?? '';
         if (userId.isEmpty) return;
@@ -198,16 +221,8 @@ class _BookingActionButtonsState extends State<BookingActionButtons> {
         );
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('تم إرسال الطلب لخدمة العملاء',
-                  style: GoogleFonts.cairo()),
-              backgroundColor: AppColors.success,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-          );
+          AppSnackbar.show(context,
+              message: 'تم إرسال الطلب لخدمة العملاء', type: SnackType.success);
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -217,14 +232,70 @@ class _BookingActionButtonsState extends State<BookingActionButtons> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(s.errorOccurred, style: GoogleFonts.cairo()),
-              backgroundColor: theme.colorScheme.error,
-            ),
-          );
+          AppSnackbar.show(context,
+              message: s.errorOccurred, type: SnackType.error);
         }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
     }
+  }
+}
+
+/// Clean, modern action button widget.
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color backgroundColor;
+  final Color foregroundColor;
+  final Color? borderColor;
+  final VoidCallback? onPressed;
+
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.backgroundColor,
+    required this.foregroundColor,
+    this.borderColor,
+    this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: Material(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: borderColor != null
+                  ? Border.all(color: borderColor!, width: 1.5)
+                  : null,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: foregroundColor, size: 20),
+                const SizedBox(width: 10),
+                Text(
+                  label,
+                  style: GoogleFonts.cairo(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: foregroundColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

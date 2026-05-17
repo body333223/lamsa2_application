@@ -103,12 +103,7 @@ class FirestoreService {
     await _db.collection('bookings').doc(bookingId).update({
       'status': status,
     });
-
-    // إرسال إشعار لصاحب الحجز فقط
-    await sendBookingStatusNotification(
-      bookingId: bookingId,
-      newStatus: status,
-    );
+    // Cloud Function onBookingStatusChange handles the push notification
   }
 
   Future<void> confirmPayment(String bookingId) async {
@@ -116,11 +111,7 @@ class FirestoreService {
       'status': 'confirmed',
       'paymentStatus': 'paid',
     });
-
-    await sendBookingStatusNotification(
-      bookingId: bookingId,
-      newStatus: 'confirmed',
-    );
+    // Cloud Function onBookingStatusChange handles the push notification
   }
 
   Future<void> requestCancelBooking(String bookingId) async {
@@ -298,6 +289,7 @@ class FirestoreService {
       'userId': userId,
       'createdAt': FieldValue.serverTimestamp(),
       'isRead': false,
+      'source': 'app', // Prevents Cloud Function from re-sending push
     };
 
     // حفظ في subcollection المستخدم فقط (الـ Cloud Function تتفعل منها)

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 
 /// The app bar content for the support chat screen.
 class ChatHeader extends StatelessWidget implements PreferredSizeWidget {
@@ -108,11 +109,9 @@ class ChatHeader extends StatelessWidget implements PreferredSizeWidget {
                       if (token != null) {
                         Clipboard.setData(ClipboardData(text: token));
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                    Text('تم نسخ عنوان الجهاز (FCM Token)')),
-                          );
+                          AppSnackbar.show(context,
+                              message: 'تم نسخ عنوان الجهاز',
+                              type: SnackType.success);
                         }
                       }
                     },

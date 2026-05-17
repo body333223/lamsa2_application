@@ -1,12 +1,16 @@
 // ignore_for_file: deprecated_member_use, unused_field, unused_field, duplicate_ignore, duplicate_ignore
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../models/service_model.dart';
+import '../../../../services/auth_service.dart';
+import '../../../../services/firestore_service.dart';
 import '../../../../services/locale_service.dart';
 import '../../../Payment/presentation/pages/payment_screen.dart';
 import '../widgets/booking_address_card.dart';
@@ -93,10 +97,52 @@ class _BookingScreenState extends State<BookingScreen> {
     'PM',
   ];
 
-  void _goToPayment() {
-    if (_selectedDate == null || _selectedTime == null || _address == null) {
+  void _goToPayment() async {
+    final isArabic = context.read<LocaleService>().isArabic;
+
+    if (_address == null || _address!.isEmpty) {
+      AppSnackbar.show(context,
+          message: isArabic ? 'حددي العنوان أولاً' : 'Select address first',
+          type: SnackType.warning);
       return;
     }
+    if (_selectedDate == null) {
+      AppSnackbar.show(context,
+          message: isArabic ? 'اختاري التاريخ' : 'Select a date',
+          type: SnackType.warning);
+      return;
+    }
+    if (_selectedTime == null) {
+      AppSnackbar.show(context,
+          message: isArabic ? 'اختاري الوقت' : 'Select a time',
+          type: SnackType.warning);
+      return;
+    }
+
+    // Check if user has a phone number (from Auth or Firestore)
+    final authService = context.read<AuthService>();
+    final user = authService.currentUser;
+    String phone = user?.phoneNumber ?? '';
+
+    if (phone.isEmpty && user?.uid != null) {
+      try {
+        final data =
+            await context.read<FirestoreService>().getUserData(user!.uid);
+        phone = (data?['phone'] ?? '').toString().trim();
+      } catch (_) {}
+    }
+
+    if (!mounted) return;
+
+    if (phone.isEmpty) {
+      _showPhoneRequiredDialog(isArabic);
+      return;
+    }
+
+    _proceedToPayment();
+  }
+
+  void _proceedToPayment() {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -108,6 +154,131 @@ class _BookingScreenState extends State<BookingScreen> {
           address: _address!,
           latitude: _lat,
           longitude: _lng,
+        ),
+      ),
+    );
+  }
+
+  void _showPhoneRequiredDialog(bool isArabic) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final phoneCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        backgroundColor: isDark ? const Color(0xFF1E1C20) : Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.phone_rounded,
+                    color: AppColors.primary, size: 30),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                isArabic ? 'رقم الهاتف مطلوب' : 'Phone number required',
+                style: GoogleFonts.cairo(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                isArabic
+                    ? 'أدخلي رقمك عشان نقدر نتواصل معاكِ بخصوص الحجز'
+                    : 'Enter your number so we can contact you',
+                style: GoogleFonts.cairo(
+                  fontSize: 13,
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              Directionality(
+                textDirection: TextDirection.ltr,
+                child: TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  style: GoogleFonts.cairo(
+                      fontSize: 16, fontWeight: FontWeight.w600),
+                  decoration: InputDecoration(
+                    hintText: '05xxxxxxxx',
+                    hintStyle: GoogleFonts.cairo(color: Colors.grey),
+                    prefixIcon: const Icon(Icons.phone_rounded,
+                        color: AppColors.primary),
+                    filled: true,
+                    fillColor: (isDark ? Colors.white : Colors.black)
+                        .withOpacity(0.05),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    final phone = phoneCtrl.text.trim();
+                    if (phone.isEmpty || phone.length < 9) {
+                      return;
+                    }
+                    // Save phone to Firestore
+                    final uid = context.read<AuthService>().currentUser?.uid;
+                    if (uid != null) {
+                      await context.read<FirestoreService>().updateUserData(
+                        userId: uid,
+                        data: {'phone': phone},
+                      );
+                    }
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (mounted) _proceedToPayment();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Text(
+                    isArabic ? 'تأكيد ومتابعة الحجز' : 'Confirm & continue',
+                    style: GoogleFonts.cairo(
+                        fontSize: 15, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  isArabic ? 'إلغاء' : 'Cancel',
+                  style: GoogleFonts.cairo(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface.withOpacity(0.5),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -287,9 +458,36 @@ class _BookingScreenState extends State<BookingScreen> {
                     const SizedBox(height: 32),
 
                     // CTA Button
-                    AppTheme.buildGlassButton(
-                      onPressed: canProceed ? _goToPayment : () {},
-                      label: s.proceedToPayment,
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: _goToPayment,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: canProceed
+                              ? AppColors.primary
+                              : AppColors.primary.withOpacity(0.4),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.payment_rounded, size: 20),
+                            const SizedBox(width: 10),
+                            Text(
+                              s.proceedToPayment,
+                              style: GoogleFonts.cairo(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 80),
                   ]),
@@ -385,10 +583,10 @@ class _BookingScreenState extends State<BookingScreen> {
       child: Stack(
         children: [
           Positioned.fill(
-            child: Image.network(
-              widget.service.imageUrl,
+            child: CachedNetworkImage(
+              imageUrl: widget.service.imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              errorWidget: (_, __, ___) => Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [AppColors.primaryLight, AppColors.primary],

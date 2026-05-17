@@ -7,6 +7,7 @@ import '../../../../services/auth_service.dart';
 import '../../../../services/locale_service.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glow_orb.dart';
 import '../widgets/auth_header.dart';
 import '../widgets/country_code_picker.dart';
@@ -61,15 +62,7 @@ class _LoginScreenState extends State<LoginScreen> {
       },
       onError: (error) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error, style: GoogleFonts.cairo()),
-            backgroundColor: Theme.of(context).colorScheme.error,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        AppSnackbar.show(context, message: error, type: SnackType.error);
       },
     );
   }

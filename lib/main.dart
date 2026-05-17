@@ -1,14 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:overlay_support/overlay_support.dart';
 import 'package:provider/provider.dart';
-
 import 'core/theme/app_theme.dart';
 import 'core/widgets/connectivity_wrapper.dart';
 import 'core/widgets/whatsapp_notification_ui.dart';
@@ -26,12 +24,12 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 
 const AndroidNotificationChannel channel = AndroidNotificationChannel(
-  'high_importance_channel',
-  'إشعارات هامة',
-  description: 'هذه القناة مخصصة لإشعارات التطبيق الهامة.',
-  importance: Importance.low,
-  playSound: false,
-  enableVibration: false,
+  'lamsa_notifications',
+  'إشعارات لمسة',
+  description: 'إشعارات التطبيق',
+  importance: Importance.high,
+  playSound: true,
+  enableVibration: true,
 );
 
 @pragma('vm:entry-point')
@@ -40,6 +38,8 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   debugPrint("Handling a background message: ${message.messageId}");
+  // Note: FCM messages with 'notification' payload are automatically displayed
+  // by the system when the app is in background. No need to show local notification here.
 }
 
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
@@ -79,6 +79,12 @@ Future<void> main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     ).timeout(const Duration(seconds: 8));
     firebaseReady = true;
+
+    // Enable unlimited Firestore offline cache
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
   } catch (e) {
     debugPrint("Firebase init error (app will continue): $e");
   }
@@ -97,6 +103,8 @@ Future<void> main() async {
       );
 
       await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+      // Create notification channel for background notifications
       await flutterLocalNotificationsPlugin
           .resolvePlatformSpecificImplementation<
               AndroidFlutterLocalNotificationsPlugin>()
@@ -115,7 +123,7 @@ Future<void> main() async {
       await FirebaseMessaging.instance
           .setForegroundNotificationPresentationOptions(
         alert: false,
-        badge: true,
+        badge: false,
         sound: false,
       );
 
@@ -125,41 +133,43 @@ Future<void> main() async {
         sound: true,
       );
 
-      await FirebaseMessaging.instance.subscribeToTopic('all_users');
-
-      // Unsubscribe from redundant topics to prevent duplicate notifications
-      // Keep only 'all_users' as the main topic
+      // Unsubscribe from ALL topics — notifications come via user token only
       try {
         await FirebaseMessaging.instance.unsubscribeFromTopic('all');
+        await FirebaseMessaging.instance.unsubscribeFromTopic('all_users');
         await FirebaseMessaging.instance.unsubscribeFromTopic('android');
         await FirebaseMessaging.instance.unsubscribeFromTopic('ios');
       } catch (_) {}
 
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-        if (message.notification != null) {
-          // Strong deduplication — ignore same content within 10 seconds
-          final contentKey =
-              '${message.notification!.title}_${message.notification!.body}';
-          if (shownNotifications.contains(contentKey)) {
-            return; // Already shown — skip duplicate
-          }
-          shownNotifications.add(contentKey);
+        final notification = message.notification;
+        final data = message.data;
 
-          // Keep the key for 10 seconds to block rapid duplicates
-          Future.delayed(const Duration(seconds: 10), () {
-            shownNotifications.remove(contentKey);
-          });
+        final title =
+            (notification?.title ?? data['title'] ?? '').toString().trim();
+        final body =
+            (notification?.body ?? data['body'] ?? '').toString().trim();
 
-          showOverlayNotification((context) {
-            return WhatsAppNotificationUI(
-              title: message.notification!.title ?? 'إشعار جديد',
-              message: message.notification!.body ?? '',
-              onTap: () {
-                OverlaySupportEntry.of(context)?.dismiss();
-              },
-            );
-          }, duration: const Duration(seconds: 4));
-        }
+        if (title.isEmpty && body.isEmpty) return;
+
+        // Deduplication — same content within 10 seconds = skip
+        final contentKey = '${title}_$body';
+        if (shownNotifications.contains(contentKey)) return;
+        shownNotifications.add(contentKey);
+        Future.delayed(const Duration(seconds: 10), () {
+          shownNotifications.remove(contentKey);
+        });
+
+        // Show in-app overlay only (no system notification when app is open)
+        showOverlayNotification((context) {
+          return WhatsAppNotificationUI(
+            title: title.isNotEmpty ? title : 'إشعار جديد',
+            message: body.isNotEmpty ? body : 'لديكِ إشعار جديد',
+            onTap: () {
+              OverlaySupportEntry.of(context)?.dismiss();
+            },
+          );
+        }, duration: const Duration(seconds: 4));
       });
     } catch (e) {
       debugPrint("Firebase Messaging init error: $e");

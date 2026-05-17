@@ -96,13 +96,23 @@ class NotificationsScreen extends StatelessWidget {
                 itemCount: docs.length,
                 itemBuilder: (context, i) {
                   final data = docs[i].data() as Map<String, dynamic>;
+                  final title = (data['title'] ?? '').toString().trim();
+                  final body = (data['body'] ?? '').toString().trim();
+
+                  // Skip empty notifications
+                  if (title.isEmpty && body.isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.only(bottom: 12),
                     child: NotificationTile(
-                      title: data['title'] ?? '',
-                      body: data['body'] ?? '',
-                      imageUrl: data['imageUrl'],
+                      title: title.isNotEmpty ? title : 'إشعار',
+                      body: body,
+                      imageUrl: data['imageUrl']?.toString(),
                       time: _getTimeNullable(data),
+                      type: data['type']?.toString(),
+                      isRead: data['isRead'] ?? true,
                     ),
                   );
                 },

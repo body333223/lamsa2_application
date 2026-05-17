@@ -92,12 +92,15 @@ class BookingDetailsScreen extends StatelessWidget {
                                   child: Text(
                                     booking.serviceName,
                                     style: GoogleFonts.cairo(
-                                      fontSize: 22,
+                                      fontSize: 20,
                                       fontWeight: FontWeight.w800,
                                       color: theme.colorScheme.onSurface,
                                     ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 BookingStatusBadge(
                                   label: statusInfo['label']!,
                                   color: Color(int.parse(statusInfo['color']!)),

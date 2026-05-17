@@ -252,25 +252,27 @@ class AppTheme {
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(40),
+        borderRadius: BorderRadius.circular(30),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
           child: Container(
-            height: 75,
+            height: 70,
             decoration: BoxDecoration(
-              color: (isDark ? Colors.black : Colors.white).withOpacity(0.5),
-              borderRadius: BorderRadius.circular(40),
+              color: (isDark ? Colors.black : Colors.white)
+                  .withOpacity(isDark ? 0.4 : 0.65),
+              borderRadius: BorderRadius.circular(30),
               border: Border.all(
-                color: Colors.white.withOpacity(isDark ? 0.1 : 0.4),
+                color: (isDark ? Colors.white : AppColors.primary)
+                    .withOpacity(isDark ? 0.08 : 0.1),
                 width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.06),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
                 ),
               ],
             ),
@@ -409,18 +411,21 @@ class _ModernPageTransitionBuilder extends PageTransitionsBuilder {
   ) {
     // Entering screen
     final offsetTween = Tween<Offset>(
-      begin: const Offset(0, 0.06),
+      begin: const Offset(0, 0.04),
       end: Offset.zero,
-    ).chain(CurveTween(curve: Curves.easeOutCubic));
+    ).chain(CurveTween(curve: Curves.easeOutQuart));
 
     final fadeTween = Tween<double>(begin: 0, end: 1)
         .chain(CurveTween(curve: Curves.easeOut));
 
-    final scaleTween = Tween<double>(begin: 0.97, end: 1.0)
-        .chain(CurveTween(curve: Curves.easeOutCubic));
+    final scaleTween = Tween<double>(begin: 0.96, end: 1.0)
+        .chain(CurveTween(curve: Curves.easeOutQuart));
 
-    // Exiting screen (pushed behind)
-    final secondaryFadeTween = Tween<double>(begin: 1, end: 0.9)
+    // Exiting screen (pushed behind) — subtle fade out
+    final secondaryFadeTween = Tween<double>(begin: 1, end: 0.92)
+        .chain(CurveTween(curve: Curves.easeIn));
+
+    final secondaryScaleTween = Tween<double>(begin: 1.0, end: 0.95)
         .chain(CurveTween(curve: Curves.easeIn));
 
     return FadeTransition(
@@ -429,9 +434,12 @@ class _ModernPageTransitionBuilder extends PageTransitionsBuilder {
         scale: animation.drive(scaleTween),
         child: SlideTransition(
           position: animation.drive(offsetTween),
-          child: FadeTransition(
-            opacity: secondaryAnimation.drive(secondaryFadeTween),
-            child: child,
+          child: ScaleTransition(
+            scale: secondaryAnimation.drive(secondaryScaleTween),
+            child: FadeTransition(
+              opacity: secondaryAnimation.drive(secondaryFadeTween),
+              child: child,
+            ),
           ),
         ),
       ),

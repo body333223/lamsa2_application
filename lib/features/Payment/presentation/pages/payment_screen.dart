@@ -12,6 +12,7 @@ import 'package:lamsa/features/Payment/presentation/widgets/payment_method_tile.
 import 'package:lamsa/features/Payment/presentation/widgets/payment_summary.dart'
     show PaymentSummary;
 import 'package:lamsa/services/firestore_service.dart' show FirestoreService;
+import 'package:lamsa/core/widgets/app_snackbar.dart';
 import 'package:provider/provider.dart';
 import '../../../../models/service_model.dart';
 import '../../../../services/auth_service.dart';
@@ -47,7 +48,24 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     try {
       final firestore = context.read<FirestoreService>();
-      final userId = context.read<AuthService>().currentUser?.uid ?? '';
+      final authService = context.read<AuthService>();
+      final userId = authService.currentUser?.uid ?? '';
+
+      // Get phone from Auth first, then Firestore
+      String clientPhone = authService.currentUser?.phoneNumber ?? '';
+      String clientName = authService.currentUser?.displayName ?? '';
+
+      if (clientPhone.isEmpty || clientName.isEmpty) {
+        final userData = await firestore.getUserData(userId);
+        if (userData != null) {
+          if (clientPhone.isEmpty) {
+            clientPhone = (userData['phone'] ?? '').toString();
+          }
+          if (clientName.isEmpty) {
+            clientName = (userData['name'] ?? '').toString();
+          }
+        }
+      }
 
       final bookingId = await firestore.createBooking(
         userId: userId,
@@ -58,13 +76,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
         status: 'pending',
         serviceImageUrl: widget.service.imageUrl,
         location: widget.address,
-        clientName: context.read<AuthService>().currentUser?.displayName ?? '',
-        clientPhone: context.read<AuthService>().currentUser?.phoneNumber ?? '',
+        clientName: clientName,
+        clientPhone: clientPhone,
         latitude: widget.latitude,
         longitude: widget.longitude,
       );
 
-      await Future.delayed(const Duration(seconds: 2));
+      // Notify admin about new booking (writes to notifications collection)
+      await firestore.sendNotification(
+        title: 'حجز جديد 🎉',
+        body:
+            '$clientName حجزت ${widget.service.name} — ${widget.date} ${widget.time}',
+        userId: 'all',
+        target: 'admin',
+      );
+
       await firestore.confirmPayment(bookingId);
 
       if (!mounted) return;
@@ -84,13 +110,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
     } catch (e) {
       if (!mounted) return;
       final s = AppStrings(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${s.errorOccurred}: $e', style: GoogleFonts.cairo()),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppSnackbar.show(context,
+          message: '${s.errorOccurred}: $e', type: SnackType.error);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
