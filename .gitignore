@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# AI/Agent tools
+.agents/
+.claude/
+.kiro/
+skills-lock.json
+analyze_output.txt
+devtools_options.yaml

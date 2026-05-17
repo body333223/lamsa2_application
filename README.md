@@ -1,16 +1,33 @@
-# lamsa2_application
+# لمسة — Lamsa
 
-A new Flutter project.
+تطبيق حجز خدمات التجميل والعناية الشخصية.
 
-## Getting Started
+## المتطلبات
 
-This project is a starting point for a Flutter application.
+- Flutter SDK 3.x+
+- Dart 3.x+
+- Firebase project configured
 
-A few resources to get you started if this is your first Flutter project:
+## التشغيل
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```bash
+flutter pub get
+flutter run
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## البناء
+
+```bash
+flutter build apk --release
+flutter build ios --release
+```
+
+## البنية
+
+```
+lib/
+├── core/           # Theme, widgets, localization
+├── features/       # Feature modules (home, bookings, profile, etc.)
+├── models/         # Data models
+└── services/       # Firebase, auth, connectivity services
+```
