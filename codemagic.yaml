@@ -1,0 +1,24 @@
+workflows:
+  ios-ipa:
+    name: iOS IPA Build
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Flutter doctor
+        script: |
+          flutter doctor -v
+      - name: Install Flutter dependencies
+        script: |
+          flutter packages pub get
+      - name: Build iPhone release application
+        script: |
+          flutter build ios --release --no-codesign
+      - name: Package and verify IPA
+        script: |
+          python3 scripts/package_ipa.py
+    artifacts:
+      - build/ios/ipa/*.ipa
