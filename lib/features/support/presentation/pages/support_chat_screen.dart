@@ -1,6 +1,5 @@
 // ignore_for_file: deprecated_member_use, curly_braces_in_flow_control_structures, use_build_context_synchronously
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -8,7 +7,6 @@ import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glow_orb.dart';
 import '../../../../services/auth_service.dart';
-import '../../../../services/firestore_service.dart';
 import '../../logic/chat_provider.dart';
 import '../widgets/chat_header.dart';
 import '../widgets/chat_input_bar.dart';
@@ -24,12 +22,12 @@ class SupportChatScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actualUserId = userId.isEmpty
-        ? (context.read<AuthService>().currentUser?.uid ?? '')
+        ? (context.read<AuthService>().userId ?? '')
         : userId;
 
     return ChangeNotifierProvider(
       create: (_) => ChatProvider(
-        context.read<FirestoreService>(),
+        null,
         context.read<AuthService>(),
         actualUserId,
       ),
@@ -93,6 +91,7 @@ class _SupportChatViewState extends State<_SupportChatView> {
     final s = AppStrings(context);
     final theme = Theme.of(context);
     final provider = context.watch<ChatProvider>();
+    final messages = provider.messages;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -122,51 +121,37 @@ class _SupportChatViewState extends State<_SupportChatView> {
                                 fontWeight: FontWeight.bold,
                                 color: theme.colorScheme.onSurface
                                     .withOpacity(0.5))))
-                    : StreamBuilder<QuerySnapshot>(
-                        stream: provider.messagesStream,
-                        builder: (context, snapshot) {
-                          if (!snapshot.hasData)
-                            return const Center(
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2));
-                          final messages = snapshot.data!.docs;
+                    : messages.isEmpty
+                        ? _EmptyChatView(s: s)
+                        : RefreshIndicator(
+                            onRefresh: provider.refresh,
+                            color: AppColors.primary,
+                            child: ListView.builder(
+                              controller: _scrollCtrl,
+                              reverse: true,
+                              padding: EdgeInsets.fromLTRB(
+                                  20,
+                                  MediaQuery.of(context).padding.top + 100,
+                                  20,
+                                  100),
+                              itemCount: messages.length,
+                              itemBuilder: (context, i) {
+                                final data = messages[i];
+                                final isAdmin = data['is_admin'] == true;
+                                DateTime? time;
+                                final raw = data['created_at'];
+                                if (raw != null) {
+                                  time = DateTime.tryParse(raw.toString());
+                                }
 
-                          if (messages.isEmpty) {
-                            return _EmptyChatView(s: s);
-                          }
-
-                          return ListView.builder(
-                            controller: _scrollCtrl,
-                            reverse: true,
-                            padding: EdgeInsets.fromLTRB(
-                                20,
-                                MediaQuery.of(context).padding.top + 100,
-                                20,
-                                100),
-                            itemCount: messages.length,
-                            itemBuilder: (context, i) {
-                              final data =
-                                  messages[i].data() as Map<String, dynamic>?;
-                              if (data == null) return const SizedBox();
-
-                              final isAdmin = data['isAdmin'] == true;
-                              final isRead = data['isRead'] == true;
-                              final time =
-                                  (data['createdAt'] as Timestamp?)?.toDate();
-
-                              if (isAdmin && !isRead) {
-                                provider.markRead();
-                              }
-
-                              return ChatMessageBubble(
-                                text: data['text'] ?? '',
-                                isAdmin: isAdmin,
-                                time: time,
-                              );
-                            },
-                          );
-                        },
-                      ),
+                                return ChatMessageBubble(
+                                  text: data['text'] ?? '',
+                                  isAdmin: isAdmin,
+                                  time: time,
+                                );
+                              },
+                            ),
+                          ),
               ),
               ChatInputBar(
                 controller: _ctrl,
@@ -202,16 +187,12 @@ class _EmptyChatView extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           Text(
-            theme.brightness == Brightness.dark
-                ? 'كيف يمكننا مساعدتكِ؟'
-                : 'How can we help you?',
+            'كيف يمكننا مساعدتكِ؟',
             style: GoogleFonts.cairo(fontSize: 20, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
           Text(
-            theme.brightness == Brightness.dark
-                ? 'فريق خدمة العملاء جاهز لخدمتكِ على مدار الساعة'
-                : 'Our team is ready to serve you 24/7',
+            'فريق خدمة العملاء جاهز لخدمتكِ على مدار الساعة',
             style: GoogleFonts.cairo(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,

@@ -11,7 +11,6 @@ import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/glow_orb.dart';
 import '../widgets/auth_header.dart';
 import '../widgets/country_code_picker.dart';
-import '../widgets/social_login_buttons.dart';
 import 'otp_verification_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -47,9 +46,9 @@ class _LoginScreenState extends State<LoginScreen> {
     // Combine country code + phone number
     final fullPhone = '${_selectedCountry.dialCode}$phone';
 
-    await auth.verifyPhoneNumber(
+    await auth.sendOtp(
       phoneNumber: fullPhone,
-      onCodeSent: (verificationId) {
+      onCodeSent: () {
         if (!mounted) return;
         Navigator.push(
           context,
@@ -240,10 +239,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                 isLoading: auth.isLoading,
                               ),
                             ),
-                            const SizedBox(height: 24),
-
-                            // Social Login
-                            const SocialLoginButtons(),
                           ],
                         ),
                       ),

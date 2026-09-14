@@ -1,35 +1,29 @@
-// ignore_for_file: deprecated_member_use
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../../../models/booking_model.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/data_service.dart';
 
-/// Handles all business logic for the Profile feature:
-/// fetching user data, bookings count, and favorites count.
+/// Handles all business logic for the Profile feature.
 class ProfileController {
   final AuthService authService;
+  final DataService _dataService;
 
-  ProfileController({required this.authService});
+  ProfileController({required this.authService}) : _dataService = DataService();
 
-  String get uid => authService.currentUser?.uid ?? '';
+  String get uid => authService.userId ?? '';
 
   bool get isGuest => uid.isEmpty;
 
   Future<Map<String, dynamic>?> getUserData() => authService.getUserData();
 
-  Stream<QuerySnapshot> bookingsStream() {
-    return FirebaseFirestore.instance
-        .collection('bookings')
-        .where('userId', isEqualTo: uid)
-        .snapshots();
+  Future<List<BookingModel>> getBookings() async {
+    if (uid.isEmpty) return [];
+    return _dataService.getUserBookings();
   }
 
-  Stream<QuerySnapshot> favoritesStream() {
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('favorites')
-        .snapshots();
+  Future<List<String>> getFavoriteIds() async {
+    if (uid.isEmpty) return [];
+    return _dataService.getFavoriteIds(uid);
   }
 
   Future<void> updateUserName(BuildContext context, String newName) async {

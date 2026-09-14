@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../models/service_model.dart';
 import '../../logic/home_controller.dart';
 import 'service_card.dart';
 
@@ -17,7 +16,7 @@ class ServicesList extends StatelessWidget {
     final s = AppStrings(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final controller = context.read<HomeController>();
+    final controller = context.watch<HomeController>();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -33,16 +32,15 @@ class ServicesList extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          StreamBuilder<List<ServiceModel>>(
-            stream: controller.servicesStream,
-            builder: (_, snap) {
-              if (snap.connectionState == ConnectionState.waiting) {
+          Builder(
+            builder: (_) {
+              if (controller.isLoadingServices) {
                 return _ShimmerGrid(isDark: isDark);
               }
-              if (snap.hasError) {
+              if (controller.servicesError != null) {
                 return _ErrorWidget(isArabic: s.isArabic);
               }
-              final services = snap.data ?? [];
+              final services = controller.services;
               if (services.isEmpty) {
                 return _EmptyState(isArabic: s.isArabic);
               }

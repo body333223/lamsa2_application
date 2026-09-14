@@ -1,11 +1,7 @@
 // ignore_for_file: use_build_context_synchronously
 
-import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../../../../services/auth_service.dart';
 import '../../../home/presentation/pages/home_screen.dart';
@@ -55,59 +51,25 @@ class _SplashScreenState extends State<SplashScreen>
     _navigate();
   }
 
-  Future<void> _requestNotificationPermission() async {
-    try {
-      if (defaultTargetPlatform == TargetPlatform.android) {
-        final status = await Permission.notification.status;
-        if (status.isDenied) {
-          await Permission.notification.request();
-        }
-      }
-
-      await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
-      );
-    } catch (e) {
-      debugPrint("Notification permission request failed: $e");
-    }
-  }
-
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(milliseconds: 2500));
+    // Init auth (restore JWT session from local storage)
+    final auth = context.read<AuthService>();
+    await auth.init();
+
+    await Future.delayed(const Duration(milliseconds: 2200));
     if (!mounted) return;
 
-    await _requestNotificationPermission();
-
-    try {
-      final auth = context.read<AuthService>();
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 800),
-          pageBuilder: (_, __, ___) =>
-              auth.isLoggedIn ? const HomeScreen() : const LoginScreen(),
-          transitionsBuilder: (_, animation, __, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        PageRouteBuilder(
-          transitionDuration: const Duration(milliseconds: 800),
-          pageBuilder: (_, __, ___) => const LoginScreen(),
-          transitionsBuilder: (_, animation, __, child) {
-            return FadeTransition(opacity: animation, child: child);
-          },
-        ),
-      );
-    }
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 800),
+        pageBuilder: (_, __, ___) =>
+            auth.isLoggedIn ? const HomeScreen() : const LoginScreen(),
+        transitionsBuilder: (_, animation, __, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
   }
 
   @override

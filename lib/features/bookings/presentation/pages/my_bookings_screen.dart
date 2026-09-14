@@ -1,36 +1,72 @@
 // ignore_for_file: deprecated_member_use
 
 import 'dart:ui';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../models/booking_model.dart';
 import '../../../../services/auth_service.dart';
+import '../../../../services/data_service.dart';
 import '../../../../services/locale_service.dart';
 import '../widgets/booking_card.dart';
 import '../widgets/empty_bookings.dart';
 
-class MyBookingsScreen extends StatelessWidget {
+class MyBookingsScreen extends StatefulWidget {
   const MyBookingsScreen({super.key});
 
-  Future<void> _onRefresh() async {
-    await Future.delayed(const Duration(milliseconds: 600));
+  @override
+  State<MyBookingsScreen> createState() => _MyBookingsScreenState();
+}
+
+class _MyBookingsScreenState extends State<MyBookingsScreen> {
+  List<BookingModel> _bookings = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBookings();
+  }
+
+  Future<void> _loadBookings() async {
+    final auth = context.read<AuthService>();
+    if (!auth.isLoggedIn) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final data = context.read<DataService>();
+      final bookings = await data.getUserBookings();
+      // Sort newest first
+      bookings.sort((a, b) => b.dateTime.compareTo(a.dateTime));
+      setState(() {
+        _bookings = bookings;
+        _isLoading = false;
+      });
+    } catch (_) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final authService = context.read<AuthService>();
-    final userId = authService.currentUser?.uid ?? '';
     final isArabic = context.watch<LocaleService>().isArabic;
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final auth = context.read<AuthService>();
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: RefreshIndicator(
-        onRefresh: _onRefresh,
+        onRefresh: _loadBookings,
         color: AppColors.primary,
         backgroundColor: theme.scaffoldBackgroundColor,
         displacement: 60,
@@ -115,72 +151,35 @@ class MyBookingsScreen extends StatelessWidget {
                 ],
               ),
             ),
+
             // Bookings list
             SliverPadding(
               padding: const EdgeInsets.only(
                   top: 32, left: 24, right: 24, bottom: 120),
-              sliver: userId.isEmpty
+              sliver: !auth.isLoggedIn
                   ? SliverToBoxAdapter(
                       child: EmptyBookings(isArabic: isArabic),
                     )
-                  : StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('bookings')
-                          .where('userId', isEqualTo: userId)
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return SliverToBoxAdapter(
-                            child: Column(
-                              children: List.generate(
-                                3,
-                                (_) => _BookingShimmer(isDark: isDark),
+                  : _isLoading
+                      ? SliverToBoxAdapter(
+                          child: Column(
+                            children: List.generate(
+                              3,
+                              (_) => _BookingShimmer(isDark: isDark),
+                            ),
+                          ),
+                        )
+                      : _bookings.isEmpty
+                          ? SliverToBoxAdapter(
+                              child: EmptyBookings(isArabic: isArabic),
+                            )
+                          : SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, i) => BookingCard(
+                                    booking: _bookings[i], isArabic: isArabic),
+                                childCount: _bookings.length,
                               ),
                             ),
-                          );
-                        }
-
-                        if (snapshot.hasError) {
-                          return SliverToBoxAdapter(
-                            child:
-                                Center(child: Text('Error: ${snapshot.error}')),
-                          );
-                        }
-
-                        var docs = snapshot.data?.docs ?? [];
-
-                        if (docs.isEmpty) {
-                          return SliverToBoxAdapter(
-                            child: EmptyBookings(isArabic: isArabic),
-                          );
-                        }
-
-                        final sortedDocs = docs.toList()
-                          ..sort((a, b) {
-                            final aData = a.data() as Map<String, dynamic>;
-                            final bData = b.data() as Map<String, dynamic>;
-                            final aTime = aData['createdAt'] as Timestamp?;
-                            final bTime = bData['createdAt'] as Timestamp?;
-                            if (aTime == null || bTime == null) return 0;
-                            return bTime.compareTo(aTime);
-                          });
-
-                        return SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, i) {
-                              final data =
-                                  sortedDocs[i].data() as Map<String, dynamic>;
-                              final booking =
-                                  BookingModel.fromJson(data, sortedDocs[i].id);
-                              return BookingCard(
-                                  booking: booking, isArabic: isArabic);
-                            },
-                            childCount: sortedDocs.length,
-                          ),
-                        );
-                      },
-                    ),
             ),
           ],
         ),

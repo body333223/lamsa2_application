@@ -1,46 +1,34 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../models/service_model.dart';
+import '../../services/domain/repositories/services_repository.dart';
+import '../../services/data/repositories/services_repository_impl.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_endpoints.dart';
 
-/// Repository that handles all Firestore data fetching for the Home feature.
+/// Clean repository for Home feature utilizing ServicesRepository
 class HomeRepository {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final ServicesRepository _servicesRepository;
 
-  /// Stream of all services from Firestore.
-  Stream<List<ServiceModel>> getServices() {
-    return _db.collection('services').snapshots().map(
-          (snap) =>
-              snap.docs.map((doc) => ServiceModel.fromFirestore(doc)).toList(),
-        );
-  }
+  HomeRepository({ServicesRepository? servicesRepository})
+      : _servicesRepository = servicesRepository ?? ServicesRepositoryImpl();
 
-  /// Stream of popular/featured services.
-  Stream<List<ServiceModel>> getPopularServices() {
-    return _db
-        .collection('services')
-        .where('isPopular', isEqualTo: true)
-        .snapshots()
-        .map((snap) =>
-            snap.docs.map((doc) => ServiceModel.fromFirestore(doc)).toList());
-  }
+  Future<List<ServiceModel>> getServices({String? category}) =>
+      _servicesRepository.getServices(category: category);
 
-  /// Stream of active slider/promo banners.
-  Stream<QuerySnapshot> getActiveSliders() {
-    return _db
-        .collection('sliders')
-        .where('isActive', isEqualTo: true)
-        .snapshots();
-  }
+  Future<List<ServiceModel>> getPopularServices() =>
+      _servicesRepository.getPopularServices();
 
-  /// Stream of service categories.
-  Stream<List<String>> getCategories() {
-    return _db.collection('categories').snapshots().map(
-          (snap) => snap.docs.map((doc) => doc['name'] as String).toList(),
-        );
-  }
+  Future<List<Map<String, dynamic>>> getSliders() =>
+      _servicesRepository.getSliders();
 
-  /// Get user data by userId.
+  Future<List<String>> getCategories() =>
+      _servicesRepository.getCategories();
+
   Future<Map<String, dynamic>?> getUserData(String userId) async {
-    final doc = await _db.collection('users').doc(userId).get();
-    return doc.data();
+    try {
+      final data = await ApiClient.get(ApiEndpoints.me, auth: true);
+      return data['user'] as Map<String, dynamic>?;
+    } catch (_) {
+      return null;
+    }
   }
 }

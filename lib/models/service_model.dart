@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class ServiceModel {
   final String id;
   final String name;
@@ -12,7 +10,7 @@ class ServiceModel {
   final int reviewCount;
   final bool isPopular;
 
-  ServiceModel({
+  const ServiceModel({
     required this.id,
     required this.name,
     required this.description,
@@ -25,20 +23,31 @@ class ServiceModel {
     required this.isPopular,
   });
 
-  factory ServiceModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-
+  factory ServiceModel.fromJson(Map<String, dynamic> json) {
     return ServiceModel(
-      id: doc.id,
-      name: data['name'] ?? '',
-      description: data['description'] ?? '',
-      price: (data['price'] ?? 0).toDouble(),
-      durationMinutes: data['durationMinutes'] ?? 0,
-      imageUrl: data['imageUrl'] ?? '',
-      category: data['category'] ?? '',
-      rating: (data['rating'] ?? 0).toDouble(),
-      reviewCount: data['reviewCount'] ?? 0,
-      isPopular: data['isPopular'] ?? false,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      description: json['description'] as String? ?? '',
+      price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      durationMinutes: json['duration_minutes'] as int? ?? 0,
+      imageUrl: json['image_url'] as String? ?? '',
+      category: json['category'] as String? ?? '',
+      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      reviewCount: json['review_count'] as int? ?? 0,
+      isPopular: json['is_popular'] as bool? ?? false,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'description': description,
+        'price': price,
+        'duration_minutes': durationMinutes,
+        'image_url': imageUrl,
+        'category': category,
+        'rating': rating,
+        'review_count': reviewCount,
+        'is_popular': isPopular,
+      };
 }

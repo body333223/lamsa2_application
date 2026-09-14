@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use
+﻿// ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -7,7 +7,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/smart_image.dart';
 import '../../../../services/auth_service.dart';
-import '../../../../services/firestore_service.dart';
+import '../../../../services/data_service.dart';
 import '../../../../services/image_upload_service.dart';
 
 /// Full-page edit profile screen.
@@ -45,7 +45,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (uid != null) {
       try {
         final firestoreData =
-            await context.read<FirestoreService>().getUserData(uid);
+            await context.read<DataService>().getUserData(uid);
         if (mounted && firestoreData != null) {
           final phone = (firestoreData['phone'] ?? '').toString();
           final name = (firestoreData['name'] ?? '').toString();
@@ -65,7 +65,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final uploadService = context.read<ImageUploadService>();
       final authService = context.read<AuthService>();
-      final uid = authService.currentUser?.uid;
+      final uid = authService.userId;
       if (uid == null) return;
 
       final url = await uploadService.pickAndUploadImage(
@@ -103,8 +103,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     try {
       final authService = context.read<AuthService>();
-      final firestoreService = context.read<FirestoreService>();
-      final uid = authService.currentUser?.uid;
+      final firestoreService = context.read<DataService>();
+      final uid = authService.userId;
 
       // Update name in Firebase Auth
       await authService.updateUserName(name);

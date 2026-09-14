@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use
+﻿// ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -34,7 +34,7 @@ class ProfileScreen extends StatelessWidget {
           final data = snap.data;
           final name = (data?['name'] ?? s.guest) as String;
           final phone = (data?['phone'] ?? '') as String;
-          final photoUrl = authService.currentUser?.photoURL;
+          final photoUrl = authService.currentUser?.avatarUrl;
 
           return SingleChildScrollView(
             physics: const BouncingScrollPhysics(),

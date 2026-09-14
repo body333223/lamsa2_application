@@ -1,11 +1,11 @@
-// ignore_for_file: deprecated_member_use
+﻿// ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../models/service_model.dart';
 import '../../../../services/auth_service.dart';
-import '../../../../services/firestore_service.dart';
+import '../../../../services/data_service.dart';
 import '../../../../services/locale_service.dart';
 import '../widgets/service_book_bar.dart';
 import '../widgets/service_hero_image.dart';
@@ -31,13 +31,13 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   }
 
   Future<void> _loadFavoriteState() async {
-    final uid = context.read<AuthService>().currentUser?.uid;
+    final uid = context.read<AuthService>().userId;
     if (uid == null) {
       setState(() => _favLoading = false);
       return;
     }
     final isFav = await context
-        .read<FirestoreService>()
+        .read<DataService>()
         .isFavorite(uid, widget.service.id);
     if (mounted) {
       setState(() {
@@ -48,11 +48,11 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   }
 
   Future<void> _toggleFavorite() async {
-    final uid = context.read<AuthService>().currentUser?.uid;
+    final uid = context.read<AuthService>().userId;
     if (uid == null) return;
     setState(() => _isFav = !_isFav);
     await context
-        .read<FirestoreService>()
+        .read<DataService>()
         .toggleFavorite(uid, widget.service.id);
   }
 

@@ -1,12 +1,12 @@
-// ignore_for_file: deprecated_member_use
+﻿// ignore_for_file: deprecated_member_use
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../services/auth_service.dart';
+import '../../../../services/data_service.dart';
 import '../../../notifications/presentation/pages/notifications_screen.dart';
 import '../../logic/home_controller.dart';
 import 'home_avatar.dart';
@@ -23,7 +23,7 @@ class HomeHeader extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
     final controller = context.watch<HomeController>();
     final authService = context.watch<AuthService>();
-    final photoUrl = authService.currentUser?.photoURL;
+    final photoUrl = authService.currentUser?.avatarUrl;
 
     return FutureBuilder<Map<String, dynamic>?>(
       future: authService.getUserData(),
@@ -122,24 +122,15 @@ class _NotifButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userId = context.read<AuthService>().currentUser?.uid;
+    final userId = context.read<AuthService>().userId;
+    final dataService = context.read<DataService>();
 
-    // Only count notifications for this user from their subcollection
-    final stream = userId != null
-        ? FirebaseFirestore.instance
-            .collection('users')
-            .doc(userId)
-            .collection('notifications')
-            .where('isRead', isEqualTo: false)
-            .snapshots()
-        : null;
-
-    return StreamBuilder<QuerySnapshot?>(
-      stream: stream,
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: userId != null ? dataService.getNotifications(userId) : Future.value([]),
       builder: (context, snapshot) {
         int unreadCount = 0;
         if (snapshot.hasData && snapshot.data != null) {
-          unreadCount = snapshot.data!.docs.length;
+          unreadCount = snapshot.data!.where((n) => n['isRead'] == false).length;
         }
         final hasUnread = unreadCount > 0;
 

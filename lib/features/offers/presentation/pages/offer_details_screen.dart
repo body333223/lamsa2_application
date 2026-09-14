@@ -1,11 +1,9 @@
-// ignore_for_file: deprecated_member_use
-
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/smart_image.dart';
-import '../../../../models/service_model.dart';
+import '../../../../services/data_service.dart';
 import '../../../bookings/presentation/pages/booking_screen.dart';
 
 /// Details screen shown when a slider/promo banner is tapped.
@@ -243,15 +241,11 @@ class OfferDetailsScreen extends StatelessWidget {
 
   Future<void> _navigateToBooking(BuildContext context) async {
     if (serviceId.isNotEmpty) {
-      // Fetch the service from Firestore and navigate to booking
+      // Fetch the service via REST API and navigate to booking
       try {
-        final doc = await FirebaseFirestore.instance
-            .collection('services')
-            .doc(serviceId)
-            .get();
+        final service = await context.read<DataService>().getServiceById(serviceId);
 
-        if (doc.exists && context.mounted) {
-          final service = ServiceModel.fromFirestore(doc);
+        if (service != null && context.mounted) {
           Navigator.push(
             context,
             MaterialPageRoute(

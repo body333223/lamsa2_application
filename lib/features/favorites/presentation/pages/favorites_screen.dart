@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use
+﻿// ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,19 +8,67 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glow_orb.dart';
 import '../../../../models/service_model.dart';
 import '../../../../services/auth_service.dart';
-import '../../../../services/firestore_service.dart';
+import '../../../../services/data_service.dart';
 import '../widgets/favorite_card.dart';
 
-class FavoritesScreen extends StatelessWidget {
+class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
+
+  @override
+  State<FavoritesScreen> createState() => _FavoritesScreenState();
+}
+
+class _FavoritesScreenState extends State<FavoritesScreen> {
+  List<ServiceModel> _favorites = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    final auth = context.read<AuthService>();
+    if (!auth.isLoggedIn) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final data = context.read<DataService>();
+      final services = await data.getFavoriteServices(auth.userId!);
+      setState(() {
+        _favorites = services;
+        _isLoading = false;
+      });
+    } catch (_) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _removeFavorite(String serviceId) async {
+    final auth = context.read<AuthService>();
+    if (!auth.isLoggedIn) return;
+
+    setState(() {
+      _favorites.removeWhere((s) => s.id == serviceId);
+    });
+
+    try {
+      final data = context.read<DataService>();
+      await data.toggleFavorite(auth.userId!, serviceId);
+    } catch (_) {
+      // Revert on error
+      _loadFavorites();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = AppStrings(context);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final uid = context.read<AuthService>().currentUser?.uid ?? '';
-    final firestoreService = context.read<FirestoreService>();
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -57,40 +105,31 @@ class FavoritesScreen extends StatelessWidget {
             child:
                 GlowOrb(size: 400, color: AppColors.accent.withOpacity(0.08)),
           ),
-          uid.isEmpty
-              ? _buildEmptyState(context, s)
-              : StreamBuilder<List<ServiceModel>>(
-                  stream: firestoreService.getFavoriteServices(uid),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return ListView.builder(
-                        padding: EdgeInsets.fromLTRB(20,
-                            MediaQuery.of(context).padding.top + 100, 20, 40),
-                        itemCount: 3,
-                        itemBuilder: (_, __) => _ShimmerCard(isDark: isDark),
-                      );
-                    }
-
-                    final services = snapshot.data ?? [];
-
-                    if (services.isEmpty) {
-                      return _buildEmptyState(context, s);
-                    }
-
-                    return ListView.builder(
-                      padding: EdgeInsets.fromLTRB(20,
-                          MediaQuery.of(context).padding.top + 100, 20, 120),
-                      itemCount: services.length,
-                      itemBuilder: (context, i) {
-                        return FavoriteCard(
-                          service: services[i],
-                          onRemove: () => firestoreService.toggleFavorite(
-                              uid, services[i].id),
-                        );
-                      },
-                    );
-                  },
-                ),
+          if (_isLoading)
+            ListView.builder(
+              padding: EdgeInsets.fromLTRB(
+                  20, MediaQuery.of(context).padding.top + 100, 20, 40),
+              itemCount: 3,
+              itemBuilder: (_, __) => _ShimmerCard(isDark: isDark),
+            )
+          else if (_favorites.isEmpty)
+            _buildEmptyState(context, s)
+          else
+            RefreshIndicator(
+              onRefresh: _loadFavorites,
+              color: AppColors.primary,
+              child: ListView.builder(
+                padding: EdgeInsets.fromLTRB(
+                    20, MediaQuery.of(context).padding.top + 100, 20, 120),
+                itemCount: _favorites.length,
+                itemBuilder: (context, i) {
+                  return FavoriteCard(
+                    service: _favorites[i],
+                    onRemove: () => _removeFavorite(_favorites[i].id),
+                  );
+                },
+              ),
+            ),
         ],
       ),
     );

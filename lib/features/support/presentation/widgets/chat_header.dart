@@ -1,8 +1,6 @@
 // ignore_for_file: deprecated_member_use, prefer_const_constructors, prefer_const_literals_to_create_immutables
 
 import 'dart:ui';
-import 'package:firebase_messaging/firebase_messaging.dart'
-    show FirebaseMessaging;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -104,15 +102,12 @@ class ChatHeader extends StatelessWidget implements PreferredSizeWidget {
                   ),
                   const SizedBox(width: 8),
                   GestureDetector(
-                    onTap: () async {
-                      final token = await FirebaseMessaging.instance.getToken();
-                      if (token != null) {
-                        Clipboard.setData(ClipboardData(text: token));
-                        if (context.mounted) {
-                          AppSnackbar.show(context,
-                              message: 'تم نسخ عنوان الجهاز',
-                              type: SnackType.success);
-                        }
+                    onTap: () {
+                      Clipboard.setData(ClipboardData(text: userId));
+                      if (context.mounted) {
+                        AppSnackbar.show(context,
+                            message: 'تم نسخ معرّف المستخدم',
+                            type: SnackType.success);
                       }
                     },
                     child: Icon(Icons.copy_rounded,

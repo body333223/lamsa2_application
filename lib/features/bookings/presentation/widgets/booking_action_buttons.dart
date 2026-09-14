@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, use_build_context_synchronously
+﻿// ignore_for_file: deprecated_member_use, use_build_context_synchronously
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,7 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../models/booking_model.dart';
 import '../../../../services/auth_service.dart';
-import '../../../../services/firestore_service.dart';
+import '../../../../services/data_service.dart';
 import '../../../support/presentation/pages/support_chat_screen.dart';
 
 /// Action buttons for booking details (postpone, cancel, contact support).
@@ -94,7 +94,7 @@ class _BookingActionButtonsState extends State<BookingActionButtons> {
     final actionColor = type == 'cancel' ? AppColors.error : AppColors.primary;
 
     final authService = context.read<AuthService>();
-    final firestoreService = context.read<FirestoreService>();
+    final firestoreService = context.read<DataService>();
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -193,7 +193,7 @@ class _BookingActionButtonsState extends State<BookingActionButtons> {
     if (confirmed == true && mounted) {
       setState(() => _isLoading = true);
       try {
-        final userId = authService.currentUser?.uid ?? '';
+        final userId = authService.userId ?? '';
         if (userId.isEmpty) return;
 
         final message = type == 'cancel'

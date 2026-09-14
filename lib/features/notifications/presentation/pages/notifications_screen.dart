@@ -1,6 +1,5 @@
-// ignore_for_file: deprecated_member_use
+﻿// ignore_for_file: deprecated_member_use
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -8,16 +7,66 @@ import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glow_orb.dart';
 import '../../../../services/auth_service.dart';
+import '../../../../services/data_service.dart';
 import '../../../../services/locale_service.dart';
 import '../widgets/notification_tile.dart';
 
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
+
+  @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  List<Map<String, dynamic>> _notifications = [];
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotifications();
+  }
+
+  Future<void> _loadNotifications() async {
+    final auth = context.read<AuthService>();
+    if (!auth.isLoggedIn) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final data = context.read<DataService>();
+      final notifs = await data.getNotifications(auth.userId!);
+      setState(() {
+        _notifications = notifs;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _markAllRead() async {
+    try {
+      final data = context.read<DataService>();
+      await data.markAllNotificationsAsRead();
+      setState(() {
+        _notifications = _notifications
+            .map((n) => {...n, 'is_read': true})
+            .toList();
+      });
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = AppStrings(context);
-    final isArabic = context.watch<LocaleService>().isArabic;
+    final isArabic = context.watch<LocaleService?>()?.isArabic ?? true;
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -41,7 +90,7 @@ class NotificationsScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(
-            onPressed: () => _markAllRead(context),
+            onPressed: _markAllRead,
             child: Text(
               isArabic ? 'قراءة الكل' : 'Read All',
               style: GoogleFonts.cairo(
@@ -65,43 +114,39 @@ class NotificationsScreen extends StatelessWidget {
               left: -100,
               child: GlowOrb(
                   size: 400, color: AppColors.accent.withOpacity(0.08))),
-          // Listen ONLY to user's subcollection (no legacy global notifications)
-          StreamBuilder<QuerySnapshot>(
-            stream: _getFilteredNotifications(context),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return ListView.builder(
-                  padding: EdgeInsets.fromLTRB(
-                      20, MediaQuery.of(context).padding.top + 100, 20, 40),
-                  itemCount: 4,
-                  itemBuilder: (_, __) => _ShimmerNotification(),
-                );
-              }
-
-              if (snapshot.hasError) {
-                return _buildEmptyState(context, isArabic ? 'صار خطأ' : 'Error',
-                    Icons.warning_amber_rounded);
-              }
-
-              final docs = snapshot.data?.docs ?? [];
-
-              if (docs.isEmpty) {
-                return _buildEmptyState(context, s.noNotifications,
-                    Icons.notifications_off_outlined);
-              }
-
-              return ListView.builder(
+          if (_isLoading)
+            ListView.builder(
+              padding: EdgeInsets.fromLTRB(
+                  20, MediaQuery.of(context).padding.top + 100, 20, 40),
+              itemCount: 4,
+              itemBuilder: (_, __) => _ShimmerNotification(),
+            )
+          else if (_error != null)
+            _buildEmptyState(context, 'صار خطأ', Icons.warning_amber_rounded)
+          else if (_notifications.isEmpty)
+            _buildEmptyState(
+                context, s.noNotifications, Icons.notifications_off_outlined)
+          else
+            RefreshIndicator(
+              onRefresh: _loadNotifications,
+              color: AppColors.primary,
+              child: ListView.builder(
                 padding: EdgeInsets.fromLTRB(
                     20, MediaQuery.of(context).padding.top + 100, 20, 120),
-                itemCount: docs.length,
+                itemCount: _notifications.length,
                 itemBuilder: (context, i) {
-                  final data = docs[i].data() as Map<String, dynamic>;
+                  final data = _notifications[i];
                   final title = (data['title'] ?? '').toString().trim();
                   final body = (data['body'] ?? '').toString().trim();
 
-                  // Skip empty notifications
                   if (title.isEmpty && body.isEmpty) {
                     return const SizedBox.shrink();
+                  }
+
+                  DateTime? time;
+                  final raw = data['created_at'];
+                  if (raw != null) {
+                    time = DateTime.tryParse(raw.toString());
                   }
 
                   return Padding(
@@ -109,63 +154,18 @@ class NotificationsScreen extends StatelessWidget {
                     child: NotificationTile(
                       title: title.isNotEmpty ? title : 'إشعار',
                       body: body,
-                      imageUrl: data['imageUrl']?.toString(),
-                      time: _getTimeNullable(data),
+                      imageUrl: data['image_url']?.toString(),
+                      time: time,
                       type: data['type']?.toString(),
-                      isRead: data['isRead'] ?? true,
+                      isRead: data['is_read'] as bool? ?? false,
                     ),
                   );
                 },
-              );
-            },
-          ),
+              ),
+            ),
         ],
       ),
     );
-  }
-
-  /// Get notifications from user's subcollection
-  Stream<QuerySnapshot> _getFilteredNotifications(BuildContext context) {
-    final userId = context.read<AuthService>().currentUser?.uid;
-    if (userId == null) {
-      // لو مفيش مستخدم — مفيش إشعارات
-      return const Stream.empty();
-    }
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('notifications')
-        .orderBy('createdAt', descending: true)
-        .snapshots();
-  }
-
-  DateTime? _getTimeNullable(Map<String, dynamic> data) {
-    final sentAt = data['sentAt'];
-    final createdAt = data['createdAt'];
-    if (sentAt is Timestamp) return sentAt.toDate();
-    if (createdAt is Timestamp) return createdAt.toDate();
-    return null;
-  }
-
-  Future<void> _markAllRead(BuildContext context) async {
-    final userId = context.read<AuthService>().currentUser?.uid;
-    if (userId == null) return;
-
-    final batch = FirebaseFirestore.instance.batch();
-
-    // Mark all in user's subcollection as read
-    final snap = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .collection('notifications')
-        .where('isRead', isEqualTo: false)
-        .get();
-
-    for (final doc in snap.docs) {
-      batch.update(doc.reference, {'isRead': true});
-    }
-
-    await batch.commit();
   }
 
   Widget _buildEmptyState(BuildContext context, String message, IconData icon) {

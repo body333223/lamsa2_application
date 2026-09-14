@@ -1,13 +1,15 @@
 import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+import 'api_service.dart';
 
-/// Service for picking, compressing, and uploading images to Firebase Storage.
+/// Service for picking, compressing, and uploading images to the REST backend.
 class ImageUploadService {
-  final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _picker = ImagePicker();
+
+  /// Pick an image from [source], compress it, upload to backend.
+  /// Returns the server URL of the uploaded image, or null on failure.
   Future<String?> pickAndUploadImage({
     required String folder,
     String? fileName,
@@ -16,7 +18,6 @@ class ImageUploadService {
     ImageSource source = ImageSource.gallery,
   }) async {
     try {
-      // 1. Pick image
       final XFile? picked = await _picker.pickImage(
         source: source,
         maxWidth: maxWidth.toDouble(),
@@ -24,98 +25,61 @@ class ImageUploadService {
       );
       if (picked == null) return null;
 
-      // 2. Read bytes
+      // Compress the image in an isolate
       final Uint8List bytes = await picked.readAsBytes();
+      final Uint8List compressed = await compute(_compressInIsolate, {
+        'bytes': bytes,
+        'maxWidth': maxWidth,
+        'quality': quality,
+      });
 
-      // 3. Compress further if needed
-      final Uint8List compressed =
-          await _compressImage(bytes, maxWidth, quality);
+      // Write to temp file for upload
+      final tempDir = Directory.systemTemp;
+      final tempFile = File(
+        '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg',
+      );
+      await tempFile.writeAsBytes(compressed);
 
-      // 4. Upload to Firebase Storage
-      final name = fileName ?? '${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final ref = _storage.ref().child(folder).child(name);
-
-      final uploadTask = ref.putData(
-        compressed,
-        SettableMetadata(contentType: 'image/jpeg'),
+      final data = await ApiService.uploadFile(
+        '/profile/avatar',
+        file: tempFile,
+        fieldName: 'avatar',
+        auth: true,
       );
 
-      final snapshot = await uploadTask;
-      final downloadUrl = await snapshot.ref.getDownloadURL();
+      // Clean up temp file
+      try {
+        await tempFile.delete();
+      } catch (_) {}
 
-      return downloadUrl;
+      return data['avatar_url'] as String?;
     } catch (e) {
       debugPrint('ImageUploadService error: $e');
       return null;
     }
   }
 
-  /// Upload raw bytes directly (useful for admin dashboard).
-  Future<String?> uploadBytes({
-    required Uint8List bytes,
-    required String folder,
-    String? fileName,
-  }) async {
-    try {
-      final name = fileName ?? '${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final ref = _storage.ref().child(folder).child(name);
-
-      final uploadTask = ref.putData(
-        bytes,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-
-      final snapshot = await uploadTask;
-      return await snapshot.ref.getDownloadURL();
-    } catch (e) {
-      debugPrint('ImageUploadService uploadBytes error: $e');
-      return null;
-    }
-  }
-
-  /// Upload a File directly.
+  /// Upload a File directly to a given endpoint.
   Future<String?> uploadFile({
     required File file,
-    required String folder,
-    String? fileName,
+    required String endpoint,
+    required String fieldName,
   }) async {
     try {
-      final name = fileName ?? '${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final ref = _storage.ref().child(folder).child(name);
-
-      final uploadTask = ref.putFile(
-        file,
-        SettableMetadata(contentType: 'image/jpeg'),
+      final data = await ApiService.uploadFile(
+        endpoint,
+        file: file,
+        fieldName: fieldName,
+        auth: true,
       );
-
-      final snapshot = await uploadTask;
-      return await snapshot.ref.getDownloadURL();
+      return data['avatar_url'] as String? ?? data['url'] as String?;
     } catch (e) {
       debugPrint('ImageUploadService uploadFile error: $e');
       return null;
     }
   }
 
-  /// Delete an image from Storage by its URL.
-  Future<void> deleteImage(String url) async {
-    try {
-      final ref = _storage.refFromURL(url);
-      await ref.delete();
-    } catch (e) {
-      debugPrint('ImageUploadService deleteImage error: $e');
-    }
-  }
-
-  /// Compress image bytes to target width and quality.
-  Future<Uint8List> _compressImage(
-      Uint8List bytes, int maxWidth, int quality) async {
-    return await compute(_compressInIsolate, {
-      'bytes': bytes,
-      'maxWidth': maxWidth,
-      'quality': quality,
-    });
-  }
-
+  // ── Compression (runs in isolate) ────────────────────────
   static Uint8List _compressInIsolate(Map<String, dynamic> params) {
     final Uint8List bytes = params['bytes'];
     final int maxWidth = params['maxWidth'];
@@ -124,7 +88,6 @@ class ImageUploadService {
     final image = img.decodeImage(bytes);
     if (image == null) return bytes;
 
-    // Resize if wider than maxWidth
     img.Image resized;
     if (image.width > maxWidth) {
       resized = img.copyResize(image, width: maxWidth);
@@ -132,7 +95,6 @@ class ImageUploadService {
       resized = image;
     }
 
-    // Encode as JPEG with quality
     final compressed = img.encodeJpg(resized, quality: quality);
     return Uint8List.fromList(compressed);
   }

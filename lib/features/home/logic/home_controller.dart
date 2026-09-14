@@ -1,11 +1,9 @@
-import 'dart:async';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../../models/service_model.dart';
 import '../data/home_repository.dart';
 
 /// State management controller for the Home feature.
-/// Manages bottom navigation, services stream, sliders, and user greeting.
+/// Uses Future-based loading (REST API) instead of Firestore streams.
 class HomeController extends ChangeNotifier {
   final HomeRepository _repository;
 
@@ -24,35 +22,87 @@ class HomeController extends ChangeNotifier {
   }
 
   // ── Services ───────────────────────────────────────────
-  Stream<List<ServiceModel>> get servicesStream => _repository.getServices();
+  List<ServiceModel> _services = [];
+  List<ServiceModel> get services => _services;
+  bool isLoadingServices = false;
+  String? servicesError;
 
-  Stream<List<ServiceModel>> get popularServicesStream =>
-      _repository.getPopularServices();
+  Future<void> loadServices({String? category}) async {
+    isLoadingServices = true;
+    servicesError = null;
+    notifyListeners();
+    try {
+      _services = await _repository.getServices(category: category);
+    } catch (e) {
+      servicesError = e.toString();
+    } finally {
+      isLoadingServices = false;
+      notifyListeners();
+    }
+  }
 
-  // ── Sliders / Promo Banners ────────────────────────────
-  Stream<QuerySnapshot> get slidersStream => _repository.getActiveSliders();
+  // ── Popular Services ───────────────────────────────────
+  List<ServiceModel> _popularServices = [];
+  List<ServiceModel> get popularServices => _popularServices;
+  bool isLoadingPopular = false;
+
+  Future<void> loadPopularServices() async {
+    isLoadingPopular = true;
+    notifyListeners();
+    try {
+      _popularServices = await _repository.getPopularServices();
+    } catch (_) {}
+    isLoadingPopular = false;
+    notifyListeners();
+  }
+
+  // ── Sliders ────────────────────────────────────────────
+  List<Map<String, dynamic>> _sliders = [];
+  List<Map<String, dynamic>> get sliders => _sliders;
+
+  Future<void> loadSliders() async {
+    try {
+      _sliders = await _repository.getSliders();
+      notifyListeners();
+    } catch (_) {}
+  }
 
   // ── Categories ─────────────────────────────────────────
-  Stream<List<String>> get categoriesStream => _repository.getCategories();
+  List<String> _categories = [];
+  List<String> get categories => _categories;
+
+  Future<void> loadCategories() async {
+    try {
+      _categories = await _repository.getCategories();
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  // ── Load All Home Data ─────────────────────────────────
+  Future<void> loadAll() async {
+    await Future.wait([
+      loadPopularServices(),
+      loadSliders(),
+      loadCategories(),
+      loadServices(),
+    ]);
+  }
 
   // ── User Greeting ──────────────────────────────────────
   String? _userName;
   String? get userName => _userName;
-  bool _isLoadingUser = false;
-  bool get isLoadingUser => _isLoadingUser;
+  bool isLoadingUser = false;
 
   Future<void> loadUserData(String userId) async {
-    _isLoadingUser = true;
+    isLoadingUser = true;
     notifyListeners();
-
     try {
       final data = await _repository.getUserData(userId);
       _userName = data?['name'] as String?;
     } catch (_) {
       _userName = null;
     }
-
-    _isLoadingUser = false;
+    isLoadingUser = false;
     notifyListeners();
   }
 

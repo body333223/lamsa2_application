@@ -1,7 +1,6 @@
-// ignore_for_file: deprecated_member_use, unused_field, unused_field, duplicate_ignore, duplicate_ignore
+﻿// ignore_for_file: deprecated_member_use, unused_field, unused_field, duplicate_ignore, duplicate_ignore
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -10,9 +9,9 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../models/service_model.dart';
 import '../../../../services/auth_service.dart';
-import '../../../../services/firestore_service.dart';
+import '../../../../services/data_service.dart';
 import '../../../../services/locale_service.dart';
-import '../../../Payment/presentation/pages/payment_screen.dart';
+import '../../../payment/presentation/pages/payment_screen.dart';
 import '../widgets/booking_address_card.dart';
 import '../widgets/booking_date_picker.dart';
 import '../widgets/booking_time_grid.dart';
@@ -127,7 +126,7 @@ class _BookingScreenState extends State<BookingScreen> {
     if (phone.isEmpty && user?.uid != null) {
       try {
         final data =
-            await context.read<FirestoreService>().getUserData(user!.uid);
+            await context.read<DataService>().getUserData(user!.uid);
         phone = (data?['phone'] ?? '').toString().trim();
       } catch (_) {}
     }
@@ -240,9 +239,9 @@ class _BookingScreenState extends State<BookingScreen> {
                       return;
                     }
                     // Save phone to Firestore
-                    final uid = context.read<AuthService>().currentUser?.uid;
+                    final uid = context.read<AuthService>().userId;
                     if (uid != null) {
-                      await context.read<FirestoreService>().updateUserData(
+                      await context.read<DataService>().updateUserData(
                         userId: uid,
                         data: {'phone': phone},
                       );
@@ -336,14 +335,11 @@ class _BookingScreenState extends State<BookingScreen> {
         '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}';
 
     // Check if ANY user has a booking at this date/time (global conflict)
-    final snapshot = await FirebaseFirestore.instance
-        .collection('bookings')
-        .where('date', isEqualTo: dateStr)
-        .where('time', isEqualTo: time.format(context))
-        .where('status',
-            whereIn: ['pending', 'confirmed', 'pending_payment']).get();
+    final isAvailable = await context
+        .read<DataService>()
+        .checkTimeSlotAvailable(dateStr, time.format(context));
 
-    if (snapshot.docs.isNotEmpty && mounted) {
+    if (!isAvailable && mounted) {
       _showTimeError(
         icon: Icons.event_busy_rounded,
         title: isArabic ? 'الوقت غير متاح' : 'Time Unavailable',

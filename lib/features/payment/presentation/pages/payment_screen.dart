@@ -5,13 +5,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lamsa/core/localization/app_strings.dart' show AppStrings;
 import 'package:lamsa/core/theme/app_theme.dart' show AppTheme, AppColors;
 import 'package:lamsa/core/widgets/glow_orb.dart' show GlowOrb;
-import 'package:lamsa/features/Payment/presentation/pages/confirmation_screen.dart'
+import 'package:lamsa/features/payment/presentation/pages/confirmation_screen.dart'
     show ConfirmationScreen;
-import 'package:lamsa/features/Payment/presentation/widgets/payment_method_tile.dart'
+import 'package:lamsa/features/payment/presentation/widgets/payment_method_tile.dart'
     show PaymentMethodTile;
-import 'package:lamsa/features/Payment/presentation/widgets/payment_summary.dart'
+import 'package:lamsa/features/payment/presentation/widgets/payment_summary.dart'
     show PaymentSummary;
-import 'package:lamsa/services/firestore_service.dart' show FirestoreService;
+import 'package:lamsa/services/data_service.dart' show DataService;
 import 'package:lamsa/core/widgets/app_snackbar.dart';
 import 'package:provider/provider.dart';
 import '../../../../models/service_model.dart';
@@ -47,9 +47,9 @@ class _PaymentScreenState extends State<PaymentScreen> {
     setState(() => _loading = true);
 
     try {
-      final firestore = context.read<FirestoreService>();
+      final firestore = context.read<DataService>();
       final authService = context.read<AuthService>();
-      final userId = authService.currentUser?.uid ?? '';
+      final userId = authService.userId ?? '';
 
       // Get phone from Auth first, then Firestore
       String clientPhone = authService.currentUser?.phoneNumber ?? '';
@@ -67,7 +67,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         }
       }
 
-      final bookingId = await firestore.createBooking(
+      final booking = await firestore.createBooking(
         userId: userId,
         serviceName: widget.service.name,
         price: widget.service.price,
@@ -82,14 +82,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         longitude: widget.longitude,
       );
 
-      // Notify admin about new booking (writes to notifications collection)
-      await firestore.sendNotification(
-        title: 'حجز جديد 🎉',
-        body:
-            '$clientName حجزت ${widget.service.name} — ${widget.date} ${widget.time}',
-        userId: 'all',
-        target: 'admin',
-      );
+      final bookingId = booking.id;
 
       await firestore.confirmPayment(bookingId);
 

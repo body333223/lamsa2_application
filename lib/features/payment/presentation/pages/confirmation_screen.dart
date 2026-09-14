@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lamsa/features/Payment/presentation/widgets/confirmation_detail_row.dart';
+import 'package:lamsa/features/payment/presentation/widgets/confirmation_detail_row.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';

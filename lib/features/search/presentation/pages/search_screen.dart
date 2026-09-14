@@ -1,4 +1,4 @@
-// ignore_for_file: deprecated_member_use, body_might_complete_normally_nullable
+﻿// ignore_for_file: deprecated_member_use, body_might_complete_normally_nullable
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/glow_orb.dart';
 import '../../../../models/service_model.dart';
-import '../../../../services/firestore_service.dart';
+import '../../../../services/data_service.dart';
 import '../../../../services/locale_service.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../widgets/search_card.dart';
@@ -55,7 +55,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final firestoreService = context.read<FirestoreService>();
+    final firestoreService = context.read<DataService>();
     final localeService = context.watch<LocaleService>();
     final strings = AppStrings(context);
     final isArabic = localeService.isArabic;

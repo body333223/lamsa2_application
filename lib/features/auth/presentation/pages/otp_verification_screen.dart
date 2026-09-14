@@ -82,6 +82,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     final auth = context.read<AuthService>();
     try {
       await auth.verifyOtpAndSignIn(
+        phone: widget.phoneNumber,
         otp: otp,
         name: widget.name,
       );
@@ -101,9 +102,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     if (!_canResend) return;
 
     final auth = context.read<AuthService>();
-    await auth.verifyPhoneNumber(
+    await auth.sendOtp(
       phoneNumber: widget.phoneNumber,
-      onCodeSent: (_) {
+      onCodeSent: () {
         _startCountdown();
         if (!mounted) return;
         final isArabic = context.read<LocaleService>().isArabic;
