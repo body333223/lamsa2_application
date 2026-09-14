@@ -3,6 +3,7 @@ import shutil
 import zipfile
 import sys
 import plistlib
+import re
 
 def package_ipa():
     app_dir = "build/ios/iphoneos/Runner.app"
@@ -21,20 +22,35 @@ def package_ipa():
         shutil.rmtree(target_app_path)
     shutil.copytree(app_dir, target_app_path, symlinks=True)
     
-    # Read Info.plist to print bundle ID and version
+    # Read and sanitize Info.plist
     info_plist_path = os.path.join(target_app_path, "Info.plist")
     bundle_id = "unknown"
     min_os = "unknown"
     version = "unknown"
+    app_name = "lamsa"
+    
     if os.path.exists(info_plist_path):
         try:
             with open(info_plist_path, "rb") as f:
                 plist_data = plistlib.load(f)
-                bundle_id = plist_data.get("CFBundleIdentifier", "unknown")
-                min_os = plist_data.get("MinimumOSVersion", plist_data.get("LSMinimumSystemVersion", "12.0+"))
-                version = plist_data.get("CFBundleShortVersionString", "1.0.0")
+                
+            bundle_id = plist_data.get("CFBundleIdentifier", "com.example.lamsa2Application")
+            min_os = plist_data.get("MinimumOSVersion", plist_data.get("LSMinimumSystemVersion", "15.0"))
+            version = plist_data.get("CFBundleShortVersionString", "1.0.0")
+            raw_name = plist_data.get("CFBundleName", "lamsa")
+            
+            # Apple Developer Portal appIdName CANNOT contain underscores (_)
+            # Replace underscores to prevent Developer Error 35 in SideStore/Sideloadly
+            clean_name = re.sub(r'[^a-zA-Z0-9 ]', '', raw_name.replace('_', ' ')).strip() or "lamsa"
+            plist_data["CFBundleName"] = clean_name
+            
+            with open(info_plist_path, "wb") as f:
+                plistlib.dump(plist_data, f)
+                
+            app_name = clean_name
+            print(f"Sanitized CFBundleName: '{clean_name}' (no underscores for Apple Developer API)")
         except Exception as e:
-            print("Warning reading Info.plist:", e)
+            print("Warning processing Info.plist:", e)
             
     print(f"Packaging {target_app_path} into {ipa_path}...")
     if os.path.exists(ipa_path):
@@ -51,8 +67,8 @@ def package_ipa():
     
     size_bytes = os.path.getsize(ipa_path)
     print(f"Verified IPA: {ipa_path} ({size_bytes} bytes)")
-    print(f"Bundle: {bundle_id}; Version: {version}; iOS: {min_os}")
-    print("IPA packaged successfully for Sideloadly, AltStore, TrollStore, or signing tool.")
+    print(f"Bundle: {bundle_id}; AppName: {app_name}; Version: {version}; iOS: {min_os}")
+    print("IPA packaged successfully for Sideloadly, AltStore, SideStore, TrollStore, or signing tool.")
 
 if __name__ == "__main__":
     package_ipa()
