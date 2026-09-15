@@ -158,8 +158,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         source: source,
       );
 
-      if (url != null && mounted) {
+      if (url != null) {
+        if (!mounted) return;
         await authService.updateUserPhoto(url);
+        if (!mounted) return;
         setState(() {
           _photoUrl = url;
         });

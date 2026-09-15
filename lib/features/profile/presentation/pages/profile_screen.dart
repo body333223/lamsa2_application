@@ -700,8 +700,10 @@ class ProfileScreen extends StatelessWidget {
         source: source,
       );
 
-      if (url != null && context.mounted) {
+      if (url != null) {
+        if (!context.mounted) return;
         await authService.updateUserPhoto(url);
+        if (!context.mounted) return;
         AppSnackbar.show(context,
             message: s.isArabic ? 'تم تحديث الصورة الشخصية بنجاح ✓' : 'Profile photo updated successfully ✓',
             type: SnackType.success);
