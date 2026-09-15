@@ -75,9 +75,25 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   String get _otpCode => _otpControllers.map((c) => c.text).join();
 
+  void _autoFillOtp() {
+    const code = '123456';
+    for (int i = 0; i < 6; i++) {
+      _otpControllers[i].text = code[i];
+    }
+    _verifyOtp();
+  }
+
   Future<void> _verifyOtp() async {
     final otp = _otpCode;
-    if (otp.length != 6) return;
+    if (otp.length != 6) {
+      final isArabic = context.read<LocaleService>().isArabic;
+      AppSnackbar.show(
+        context,
+        message: isArabic ? 'يرجى إدخال رمز التحقق المكون من 6 أرقام' : 'Please enter the 6-digit code',
+        type: SnackType.warning,
+      );
+      return;
+    }
 
     final auth = context.read<AuthService>();
     try {
@@ -171,12 +187,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 60),
+                  const SizedBox(height: 30),
 
                   // OTP Icon
                   Container(
-                    width: 100,
-                    height: 100,
+                    width: 90,
+                    height: 90,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: LinearGradient(
@@ -188,11 +204,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     ),
                     child: Icon(
                       Icons.sms_outlined,
-                      size: 48,
+                      size: 42,
                       color: AppColors.primary,
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
 
                   // Title
                   Text(
@@ -203,7 +219,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       color: theme.colorScheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
 
                   // Subtitle with phone number
                   Text(
@@ -215,14 +231,44 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 24),
+
+                  // Helper Badge for Mock OTP
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: AppColors.primary.withOpacity(0.25),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.info_outline, size: 18, color: AppColors.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          isArabic ? 'رمز التحقق الافتراضي: 123456' : 'Default OTP: 123456',
+                          style: GoogleFonts.cairo(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
 
                   // OTP Input Fields
                   AppTheme.buildGlassContainer(
                     context: context,
                     opacity: isDark ? 0.15 : 0.6,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 32),
+                        horizontal: 16, vertical: 28),
                     child: Column(
                       children: [
                         Directionality(
@@ -234,7 +280,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                                 child: Container(
                                   margin:
                                       const EdgeInsets.symmetric(horizontal: 3),
-                                  height: 55,
+                                  height: 54,
                                   child: TextFormField(
                                     controller: _otpControllers[index],
                                     focusNode: _focusNodes[index],
@@ -242,7 +288,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                                     textAlign: TextAlign.center,
                                     maxLength: 1,
                                     style: GoogleFonts.cairo(
-                                      fontSize: 22,
+                                      fontSize: 20,
                                       fontWeight: FontWeight.w800,
                                       color: theme.colorScheme.onSurface,
                                     ),
@@ -252,6 +298,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                                       fillColor:
                                           (isDark ? Colors.white : Colors.black)
                                               .withOpacity(0.05),
+                                      contentPadding: EdgeInsets.zero,
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(14),
                                         borderSide: BorderSide.none,
@@ -281,7 +328,26 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                             }),
                           ),
                         ),
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 20),
+
+                        // Auto-Fill Button
+                        TextButton.icon(
+                          onPressed: _autoFillOtp,
+                          icon: const Icon(Icons.flash_on_rounded, size: 18),
+                          label: Text(
+                            isArabic ? 'ملء تلقائي للرمز (123456)' : 'Auto-fill Code (123456)',
+                            style: GoogleFonts.cairo(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
 
                         // Verify Button
                         Consumer<AuthService>(
@@ -291,7 +357,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                             isLoading: auth.isLoading,
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
 
                         // Countdown & Resend
                         if (!_canResend)
