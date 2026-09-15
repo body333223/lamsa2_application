@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/localization/app_strings.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/smart_image.dart';
 import '../../../../services/auth_service.dart';
+import '../../../../services/image_upload_service.dart';
 import '../../../../services/locale_service.dart';
 import '../../../../services/theme_service.dart';
 import '../../../auth/presentation/pages/login_screen.dart';
@@ -178,6 +180,7 @@ class ProfileScreen extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context, String name, String phone,
       String? photoUrl, ThemeData theme, bool isDark) {
+    final s = AppStrings(context);
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
@@ -205,10 +208,7 @@ class ProfileScreen extends StatelessWidget {
         children: [
           // Avatar
           GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-            ),
+            onTap: () => _showPhotoPickerSheet(context, s),
             child: Stack(
               children: [
                 Container(
@@ -566,6 +566,153 @@ class ProfileScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _showPhotoPickerSheet(BuildContext context, AppStrings s) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1C20) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                s.isArabic ? 'صورة الملف الشخصي' : 'Profile Photo',
+                style: GoogleFonts.cairo(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.photo_camera_rounded, color: AppColors.primary),
+                ),
+                title: Text(
+                  s.isArabic ? 'التقاط صورة بالكاميرا' : 'Take a photo',
+                  style: GoogleFonts.cairo(fontWeight: FontWeight.w700),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndUploadAvatar(context, ImageSource.camera, s);
+                },
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF9B59B6).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.photo_library_rounded, color: Color(0xFF9B59B6)),
+                ),
+                title: Text(
+                  s.isArabic ? 'اختيار من المعرض' : 'Choose from gallery',
+                  style: GoogleFonts.cairo(fontWeight: FontWeight.w700),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickAndUploadAvatar(context, ImageSource.gallery, s);
+                },
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.teal.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.edit_rounded, color: Colors.teal),
+                ),
+                title: Text(
+                  s.isArabic ? 'تعديل البيانات الشخصية' : 'Edit profile info',
+                  style: GoogleFonts.cairo(fontWeight: FontWeight.w700),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickAndUploadAvatar(BuildContext context, ImageSource source, AppStrings s) async {
+    try {
+      final uploadService = context.read<ImageUploadService>();
+      final authService = context.read<AuthService>();
+      final uid = authService.userId;
+      if (uid == null) {
+        AppSnackbar.show(context,
+            message: s.isArabic ? 'يجب تسجيل الدخول أولاً' : 'Please login first',
+            type: SnackType.warning);
+        return;
+      }
+
+      AppSnackbar.show(context,
+          message: s.isArabic ? 'جاري رفع الصورة...' : 'Uploading photo...',
+          type: SnackType.info);
+
+      final url = await uploadService.pickAndUploadImage(
+        folder: 'profile_photos',
+        fileName: '$uid.jpg',
+        maxWidth: 600,
+        quality: 80,
+        source: source,
+      );
+
+      if (url != null && context.mounted) {
+        await authService.updateUserPhoto(url);
+        AppSnackbar.show(context,
+            message: s.isArabic ? 'تم تحديث الصورة الشخصية بنجاح ✓' : 'Profile photo updated successfully ✓',
+            type: SnackType.success);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        AppSnackbar.show(context,
+            message: s.isArabic ? 'حدث خطأ أثناء رفع الصورة' : 'Error uploading photo',
+            type: SnackType.error);
+      }
+    }
   }
 }
 

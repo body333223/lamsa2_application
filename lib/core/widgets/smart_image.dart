@@ -35,31 +35,39 @@ class SmartImage extends StatelessWidget {
 
     Widget image;
 
-    if (imageData.isEmpty) {
+    String source = imageData.trim();
+    if (source.isEmpty) {
       image = _buildPlaceholder(isDark);
-    } else if (imageData.startsWith('http')) {
-      // Network URL
-      image = CachedNetworkImage(
-        imageUrl: imageData,
-        width: width,
-        height: height,
-        fit: fit,
-        placeholder: (_, __) => placeholder ?? _buildLoading(isDark),
-        errorWidget: (_, __, ___) => errorWidget ?? _buildPlaceholder(isDark),
-      );
     } else {
-      // Try base64
-      try {
-        final Uint8List bytes = base64Decode(imageData);
-        image = Image.memory(
-          bytes,
+      if (source.startsWith('/')) {
+        // Prepend host URL for relative server paths
+        source = 'http://192.168.1.50:3000$source';
+      }
+
+      if (source.startsWith('http://') || source.startsWith('https://')) {
+        // Network URL
+        image = CachedNetworkImage(
+          imageUrl: source,
           width: width,
           height: height,
           fit: fit,
-          errorBuilder: (_, __, ___) => _buildPlaceholder(isDark),
+          placeholder: (_, __) => placeholder ?? _buildLoading(isDark),
+          errorWidget: (_, __, ___) => errorWidget ?? _buildPlaceholder(isDark),
         );
-      } catch (_) {
-        image = _buildPlaceholder(isDark);
+      } else {
+        // Try base64
+        try {
+          final Uint8List bytes = base64Decode(source);
+          image = Image.memory(
+            bytes,
+            width: width,
+            height: height,
+            fit: fit,
+            errorBuilder: (_, __, ___) => _buildPlaceholder(isDark),
+          );
+        } catch (_) {
+          image = _buildPlaceholder(isDark);
+        }
       }
     }
 

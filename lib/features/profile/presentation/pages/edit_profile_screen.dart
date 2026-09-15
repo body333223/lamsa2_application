@@ -1,8 +1,9 @@
-﻿// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/smart_image.dart';
@@ -61,18 +62,100 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  Future<void> _pickPhoto() async {
+  void _pickPhoto() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1C20) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'تغيير الصورة الشخصية',
+                style: GoogleFonts.cairo(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.photo_camera_rounded, color: AppColors.primary),
+                ),
+                title: Text(
+                  'التقاط صورة بالكاميرا',
+                  style: GoogleFonts.cairo(fontWeight: FontWeight.w700),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _uploadFromSource(ImageSource.camera);
+                },
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF9B59B6).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.photo_library_rounded, color: Color(0xFF9B59B6)),
+                ),
+                title: Text(
+                  'اختيار من المعرض',
+                  style: GoogleFonts.cairo(fontWeight: FontWeight.w700),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _uploadFromSource(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _uploadFromSource(ImageSource source) async {
     try {
       final uploadService = context.read<ImageUploadService>();
       final authService = context.read<AuthService>();
       final uid = authService.userId;
       if (uid == null) return;
 
+      AppSnackbar.show(context, message: 'جاري رفع الصورة...', type: SnackType.info);
+
       final url = await uploadService.pickAndUploadImage(
         folder: 'profile_photos',
         fileName: '$uid.jpg',
-        maxWidth: 500,
+        maxWidth: 600,
         quality: 80,
+        source: source,
       );
 
       if (url != null && mounted) {
@@ -80,6 +163,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         setState(() {
           _photoUrl = url;
         });
+        AppSnackbar.show(context,
+            message: 'تم تحديث الصورة الشخصية بنجاح ✓', type: SnackType.success);
       }
     } catch (e) {
       if (mounted) {

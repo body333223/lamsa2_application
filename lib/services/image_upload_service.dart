@@ -14,7 +14,7 @@ class ImageUploadService {
     required String folder,
     String? fileName,
     int maxWidth = 800,
-    int quality = 75,
+    int quality = 80,
     ImageSource source = ImageSource.gallery,
   }) async {
     try {
@@ -25,32 +25,40 @@ class ImageUploadService {
       );
       if (picked == null) return null;
 
-      // Compress the image in an isolate
-      final Uint8List bytes = await picked.readAsBytes();
-      final Uint8List compressed = await compute(_compressInIsolate, {
-        'bytes': bytes,
-        'maxWidth': maxWidth,
-        'quality': quality,
-      });
+      File fileToUpload = File(picked.path);
 
-      // Write to temp file for upload
-      final tempDir = Directory.systemTemp;
-      final tempFile = File(
-        '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg',
-      );
-      await tempFile.writeAsBytes(compressed);
+      // Attempt isolate compression if needed
+      try {
+        final Uint8List bytes = await picked.readAsBytes();
+        final Uint8List compressed = await compute(_compressInIsolate, {
+          'bytes': bytes,
+          'maxWidth': maxWidth,
+          'quality': quality,
+        });
+
+        final tempDir = Directory.systemTemp;
+        final tempFile = File(
+          '${tempDir.path}/upload_${DateTime.now().millisecondsSinceEpoch}.jpg',
+        );
+        await tempFile.writeAsBytes(compressed);
+        fileToUpload = tempFile;
+      } catch (e) {
+        debugPrint('Compression skipped, using original file: $e');
+      }
 
       final data = await ApiService.uploadFile(
         '/profile/avatar',
-        file: tempFile,
+        file: fileToUpload,
         fieldName: 'avatar',
         auth: true,
       );
 
-      // Clean up temp file
-      try {
-        await tempFile.delete();
-      } catch (_) {}
+      // Clean up temp file if created
+      if (fileToUpload.path.contains('upload_')) {
+        try {
+          await fileToUpload.delete();
+        } catch (_) {}
+      }
 
       return data['avatar_url'] as String?;
     } catch (e) {
