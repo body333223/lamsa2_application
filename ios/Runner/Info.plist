@@ -52,5 +52,13 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>نحتاج إذن الكاميرا لالتقاط صورة الملف الشخصي</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>نحتاج إذن الوصول لمعرض الصور لاختيار صورة الملف الشخصي</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>نحتاج إذن تحديد الموقع لتوصيل الخدمة لعنوانك بدقة</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>نحتاج إذن تحديد الموقع لتوصيل الخدمة بدقة</string>
 </dict>
 </plist>
