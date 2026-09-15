@@ -1,4 +1,4 @@
-﻿// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -443,12 +443,21 @@ class ProfileScreen extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: () async {
                         Navigator.pop(ctx);
-
-                        AppSnackbar.show(context,
-                            message: s.isArabic
-                                ? 'تم إرسال طلب حذف الحساب'
-                                : 'Account deletion request sent',
-                            type: SnackType.info);
+                        final auth = context.read<AuthService>();
+                        await auth.deleteAccount();
+                        if (!context.mounted) return;
+                        AppSnackbar.show(
+                          context,
+                          message: s.isArabic
+                              ? 'تم حذف حسابك وجميع بياناتك نهائياً بنجاح'
+                              : 'Your account has been permanently deleted',
+                          type: SnackType.success,
+                        );
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(builder: (_) => const LoginScreen()),
+                          (route) => false,
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.error,

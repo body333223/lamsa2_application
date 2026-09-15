@@ -81,7 +81,9 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       final isArabic = context.read<LocaleService>().isArabic;
       AppSnackbar.show(
         context,
-        message: isArabic ? 'يرجى إدخال رمز التحقق المكون من 6 أرقام' : 'Please enter the 6-digit code',
+        message: isArabic
+            ? 'يرجى إدخال رمز التحقق المكون من 6 أرقام'
+            : 'Please enter the 6-digit code',
         type: SnackType.warning,
       );
       return;

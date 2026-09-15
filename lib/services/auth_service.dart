@@ -174,6 +174,24 @@ class AuthService extends ChangeNotifier {
 
   Future<void> signOut() async => logout();
 
+  // ── Delete Account Immediately (Privacy Compliant) ────────
+  Future<void> deleteAccount() async {
+    isLoading = true;
+    notifyListeners();
+
+    try {
+      await ApiService.delete('/auth/me', auth: true);
+    } catch (e) {
+      debugPrint('deleteAccount error: $e');
+    } finally {
+      await ApiService.clearToken();
+      await _clearUserLocally();
+      _user = null;
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
   // ── Update Name ───────────────────────────────────────────
   Future<void> updateUserName(String newName) async {
     final name = newName.trim();
