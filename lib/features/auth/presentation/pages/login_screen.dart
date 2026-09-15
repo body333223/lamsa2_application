@@ -36,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final auth = context.read<AuthService>();
+    final isArabic = context.read<LocaleService>().isArabic;
     String phone = _phoneCtrl.text.trim();
 
     // Remove leading zero if present
@@ -48,8 +49,17 @@ class _LoginScreenState extends State<LoginScreen> {
 
     await auth.sendOtp(
       phoneNumber: fullPhone,
-      onCodeSent: () {
+      onCodeSent: (code) {
         if (!mounted) return;
+        if (code != null && code.isNotEmpty) {
+          AppSnackbar.show(
+            context,
+            message: isArabic
+                ? 'رمز التحقق الخاص بك هو: [ $code ]'
+                : 'Your verification code is: [ $code ]',
+            type: SnackType.success,
+          );
+        }
         Navigator.push(
           context,
           MaterialPageRoute(

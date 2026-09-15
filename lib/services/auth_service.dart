@@ -109,7 +109,7 @@ class AuthService extends ChangeNotifier {
   // ── Send Real OTP via Live Backend ────────────────────────
   Future<void> sendOtp({
     required String phoneNumber,
-    required Function() onCodeSent,
+    required Function(String? code) onCodeSent,
     required Function(String error) onError,
   }) async {
     isLoading = true;
@@ -117,10 +117,8 @@ class AuthService extends ChangeNotifier {
 
     try {
       final res = await ApiService.post('/auth/send-otp', body: {'phone': phoneNumber});
-      if (res['devCode'] != null) {
-        debugPrint('🔑 [BACKEND OTP RECEIVED]: ${res['devCode']}');
-      }
-      onCodeSent();
+      final devCode = res['devCode'] as String?;
+      onCodeSent(devCode);
     } catch (e) {
       onError(e.toString());
     } finally {
