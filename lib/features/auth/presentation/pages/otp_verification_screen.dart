@@ -112,13 +112,25 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     final auth = context.read<AuthService>();
     await auth.sendOtp(
       phoneNumber: widget.phoneNumber,
-      onCodeSent: () {
+      onCodeSent: (code) {
         _startCountdown();
         if (!mounted) return;
         final isArabic = context.read<LocaleService>().isArabic;
-        AppSnackbar.show(context,
+        if (code != null && code.isNotEmpty) {
+          AppSnackbar.show(
+            context,
+            message: isArabic
+                ? 'رمز التحقق الجديد هو: [ $code ]'
+                : 'Your new verification code is: [ $code ]',
+            type: SnackType.success,
+          );
+        } else {
+          AppSnackbar.show(
+            context,
             message: isArabic ? 'تم إرسال رمز جديد' : 'New code sent',
-            type: SnackType.success);
+            type: SnackType.success,
+          );
+        }
       },
       onError: (error) {
         if (!mounted) return;
