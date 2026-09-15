@@ -7,7 +7,7 @@ import '../errors/exceptions.dart';
 /// Clean Architecture HTTP client.
 /// Handles headers, auth tokens, timeout, and exceptions.
 class ApiClient {
-  static const String baseUrl = 'http://192.168.1.24:3000/api'; // Local Wi-Fi network (iPhone & PC)
+  static const String baseUrl = 'http://192.168.1.50:3000/api'; // Local Wi-Fi network (iPhone & PC)
   // static const String baseUrl = 'http://10.0.2.2:3000/api'; // Android emulator
   // static const String baseUrl = 'https://your-api.com/api'; // Production
 

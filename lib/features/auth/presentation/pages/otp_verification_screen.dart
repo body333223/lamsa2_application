@@ -75,14 +75,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   String get _otpCode => _otpControllers.map((c) => c.text).join();
 
-  void _autoFillOtp() {
-    const code = '123456';
-    for (int i = 0; i < 6; i++) {
-      _otpControllers[i].text = code[i];
-    }
-    _verifyOtp();
-  }
-
   Future<void> _verifyOtp() async {
     final otp = _otpCode;
     if (otp.length != 6) {
@@ -125,7 +117,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         if (!mounted) return;
         final isArabic = context.read<LocaleService>().isArabic;
         AppSnackbar.show(context,
-            message: isArabic ? 'تم إعادة إرسال الرمز' : 'Code resent',
+            message: isArabic ? 'تم إرسال رمز جديد' : 'New code sent',
             type: SnackType.success);
       },
       onError: (error) {
@@ -231,44 +223,14 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     ),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 24),
-
-                  // Helper Badge for Mock OTP
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: AppColors.primary.withOpacity(0.25),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.info_outline, size: 18, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          isArabic ? 'رمز التحقق الافتراضي: 123456' : 'Default OTP: 123456',
-                          style: GoogleFonts.cairo(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
 
                   // OTP Input Fields
                   AppTheme.buildGlassContainer(
                     context: context,
                     opacity: isDark ? 0.15 : 0.6,
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 28),
+                        horizontal: 16, vertical: 32),
                     child: Column(
                       children: [
                         Directionality(
@@ -317,7 +279,6 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                                       } else if (value.isEmpty && index > 0) {
                                         _focusNodes[index - 1].requestFocus();
                                       }
-                                      // Auto-verify when all 6 digits entered
                                       if (_otpCode.length == 6) {
                                         _verifyOtp();
                                       }
@@ -328,26 +289,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                             }),
                           ),
                         ),
-                        const SizedBox(height: 20),
-
-                        // Auto-Fill Button
-                        TextButton.icon(
-                          onPressed: _autoFillOtp,
-                          icon: const Icon(Icons.flash_on_rounded, size: 18),
-                          label: Text(
-                            isArabic ? 'ملء تلقائي للرمز (123456)' : 'Auto-fill Code (123456)',
-                            style: GoogleFonts.cairo(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
-                          ),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          ),
-                        ),
-
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 28),
 
                         // Verify Button
                         Consumer<AuthService>(

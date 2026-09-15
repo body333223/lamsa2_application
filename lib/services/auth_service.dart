@@ -47,7 +47,7 @@ class UserModel {
   }
 }
 
-/// Authentication service — supports offline/mock and JWT + REST API.
+/// Authentication service connected directly to the live Backend REST API.
 class AuthService extends ChangeNotifier {
   static const String _userPrefsKey = 'cached_user_profile';
   bool isLoading = false;
@@ -57,7 +57,7 @@ class AuthService extends ChangeNotifier {
   bool get isLoggedIn => _user != null;
   String? get userId => _user?.id;
 
-  // ── Init — restore session ────────────────────────────────
+  // ── Init — restore session from token & backend ────────────
   Future<void> init() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -78,8 +78,8 @@ class AuthService extends ChangeNotifier {
           await _saveUserLocally(_user!);
           notifyListeners();
         }
-      } catch (_) {
-        // Backend offline or token invalid - keep cached user for offline mode
+      } catch (e) {
+        debugPrint('Session refresh note: $e');
       }
     } catch (e) {
       debugPrint('AuthService init error: $e');
@@ -106,7 +106,7 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // ── Send OTP ──────────────────────────────────────────────
+  // ── Send Real OTP via Live Backend ────────────────────────
   Future<void> sendOtp({
     required String phoneNumber,
     required Function() onCodeSent,
@@ -116,12 +116,9 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Try backend if available
-      try {
-        await ApiService.post('/auth/send-otp', body: {'phone': phoneNumber});
-      } catch (_) {
-        // Backend offline - simulate delay for mock OTP
-        await Future.delayed(const Duration(milliseconds: 300));
+      final res = await ApiService.post('/auth/send-otp', body: {'phone': phoneNumber});
+      if (res['devCode'] != null) {
+        debugPrint('🔑 [BACKEND OTP RECEIVED]: ${res['devCode']}');
       }
       onCodeSent();
     } catch (e) {
@@ -132,7 +129,7 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // ── Verify OTP ────────────────────────────────────────────
+  // ── Verify Real OTP via Live Backend ──────────────────────
   Future<void> verifyOtpAndSignIn({
     required String phone,
     required String otp,
@@ -142,52 +139,23 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Try backend first if available
-      try {
-        final data = await ApiService.post('/auth/verify-otp', body: {
-          'phone': phone,
-          'code': otp,
-          if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
-        });
+      final data = await ApiService.post('/auth/verify-otp', body: {
+        'phone': phone,
+        'code': otp.trim(),
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+      });
 
-        final token = data['token'] as String;
-        await ApiService.setToken(token);
-        _user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
-        await _saveUserLocally(_user!);
-        return;
-      } catch (_) {
-        // Backend is offline / unreachable: Fallback to Mock Auth
-      }
-
-      // Offline Mock Sign-In logic
-      await Future.delayed(const Duration(milliseconds: 400));
-      final cleanDigits = phone.replaceAll(RegExp(r'\D'), '');
-      final generatedId = 'user_${cleanDigits.isNotEmpty ? cleanDigits : DateTime.now().millisecondsSinceEpoch}';
-      final displayName = (name != null && name.trim().isNotEmpty) ? name.trim() : 'مستخدم لمسة';
-
-      final mockUser = UserModel(
-        id: generatedId,
-        name: displayName,
-        phone: phone,
-        role: 'user',
-      );
-
-      final mockToken = 'mock_jwt_token_${DateTime.now().millisecondsSinceEpoch}';
-      await ApiService.setToken(mockToken);
-      await _saveUserLocally(mockUser);
-
-      _user = mockUser;
+      final token = data['token'] as String;
+      await ApiService.setToken(token);
+      _user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
+      await _saveUserLocally(_user!);
+      notifyListeners();
     } catch (e) {
       rethrow;
     } finally {
       isLoading = false;
       notifyListeners();
     }
-  }
-
-  // ── Quick Demo Login ──────────────────────────────────────
-  Future<void> loginAsGuestOrDemo({String phone = '+966500000000', String name = 'عميلة لمسة'}) async {
-    await verifyOtpAndSignIn(phone: phone, otp: '123456', name: name);
   }
 
   // ── Logout ────────────────────────────────────────────────
@@ -197,15 +165,13 @@ class AuthService extends ChangeNotifier {
 
     try {
       await ApiService.post('/auth/logout', auth: true);
-    } catch (_) {
-      // Ignore network errors on logout
-    } finally {
-      await ApiService.clearToken();
-      await _clearUserLocally();
-      _user = null;
-      isLoading = false;
-      notifyListeners();
-    }
+    } catch (_) {}
+
+    await ApiService.clearToken();
+    await _clearUserLocally();
+    _user = null;
+    isLoading = false;
+    notifyListeners();
   }
 
   Future<void> signOut() async => logout();
@@ -219,27 +185,21 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      try {
-        final data = await ApiService.put('/auth/me', body: {'name': name}, auth: true);
-        _user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
-      } catch (_) {
-        // Backend offline: update locally
-        if (_user != null) {
-          _user = UserModel(
-            id: _user!.id,
-            name: name,
-            phone: _user!.phone,
-            email: _user!.email,
-            avatarUrl: _user!.avatarUrl,
-            role: _user!.role,
-          );
-        }
-      }
+      final data = await ApiService.put('/auth/me', body: {'name': name}, auth: true);
+      _user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
+      await _saveUserLocally(_user!);
+    } catch (e) {
       if (_user != null) {
+        _user = UserModel(
+          id: _user!.id,
+          name: name,
+          phone: _user!.phone,
+          email: _user!.email,
+          avatarUrl: _user!.avatarUrl,
+          role: _user!.role,
+        );
         await _saveUserLocally(_user!);
       }
-    } catch (e) {
-      rethrow;
     } finally {
       isLoading = false;
       notifyListeners();
