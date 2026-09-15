@@ -95,13 +95,13 @@ class BookingModel {
       };
 
   factory BookingModel.fromJson(Map<String, dynamic> data, [String? idOverride]) {
-    final id = idOverride ?? data['id'] as String? ?? '';
+    final id = idOverride ?? data['id']?.toString() ?? '';
 
     // Parse dateTime from date + time or date_time field
     DateTime dt;
     final rawDatetime = data['date_time'];
-    final rawDate = data['date'] as String? ?? '';
-    final rawTime = data['time'] as String? ?? '';
+    final rawDate = data['date']?.toString() ?? data['booking_date']?.toString() ?? '';
+    final rawTime = data['time']?.toString() ?? data['booking_time']?.toString() ?? '';
 
     if (rawDatetime != null) {
       dt = DateTime.tryParse(rawDatetime.toString()) ?? DateTime.now();
@@ -114,22 +114,22 @@ class BookingModel {
 
     return BookingModel(
       id: id,
-      userId: data['user_id'] as String? ?? '',
-      serviceId: data['service_id'] as String? ?? '',
-      serviceName: data['service_name'] as String? ?? '',
-      therapistName: data['therapist_name'] as String? ?? '',
+      userId: data['user_id']?.toString() ?? data['userId']?.toString() ?? '',
+      serviceId: data['service_id']?.toString() ?? data['serviceId']?.toString() ?? '',
+      serviceName: data['service_name']?.toString() ?? data['serviceName']?.toString() ?? '',
+      therapistName: data['therapist_name']?.toString() ?? data['therapistName']?.toString() ?? '',
       dateTime: dt,
       date: rawDate,
       time: rawTime,
-      price: (data['price'] as num?)?.toDouble() ?? 0,
-      status: data['status'] as String? ?? 'pending',
-      paymentStatus: data['payment_status'] as String? ?? 'pending',
-      location: data['location'] as String? ?? '',
-      notes: data['notes'] as String?,
-      serviceImageUrl: data['service_image_url'] as String? ?? '',
-      paymentMethod: data['payment_method'] as String? ?? '',
-      clientName: data['client_name'] as String? ?? '',
-      clientPhone: data['client_phone'] as String? ?? '',
+      price: (data['price'] as num?)?.toDouble() ?? (data['total_price'] as num?)?.toDouble() ?? 0,
+      status: data['status']?.toString() ?? 'pending',
+      paymentStatus: data['payment_status']?.toString() ?? data['paymentStatus']?.toString() ?? 'pending',
+      location: data['location']?.toString() ?? data['address']?.toString() ?? '',
+      notes: data['notes']?.toString(),
+      serviceImageUrl: data['service_image_url']?.toString() ?? data['serviceImageUrl']?.toString() ?? '',
+      paymentMethod: data['payment_method']?.toString() ?? data['paymentMethod']?.toString() ?? '',
+      clientName: data['client_name']?.toString() ?? data['clientName']?.toString() ?? '',
+      clientPhone: data['client_phone']?.toString() ?? data['clientPhone']?.toString() ?? '',
     );
   }
 }

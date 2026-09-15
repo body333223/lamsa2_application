@@ -25,16 +25,16 @@ class ServiceModel {
 
   factory ServiceModel.fromJson(Map<String, dynamic> json) {
     return ServiceModel(
-      id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      description: json['description'] as String? ?? '',
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      durationMinutes: json['duration_minutes'] as int? ?? 0,
-      imageUrl: json['image_url'] as String? ?? '',
-      category: json['category'] as String? ?? '',
+      durationMinutes: (json['duration_minutes'] ?? json['durationMinutes'] as num?)?.toInt() ?? 0,
+      imageUrl: (json['image_url'] ?? json['imageUrl'])?.toString() ?? '',
+      category: json['category']?.toString() ?? '',
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
-      reviewCount: json['review_count'] as int? ?? 0,
-      isPopular: json['is_popular'] as bool? ?? false,
+      reviewCount: (json['review_count'] ?? json['reviewCount'] as num?)?.toInt() ?? 0,
+      isPopular: json['is_popular'] == true || json['is_popular'] == 1 || json['isPopular'] == true || json['isPopular'] == 1,
     );
   }
 

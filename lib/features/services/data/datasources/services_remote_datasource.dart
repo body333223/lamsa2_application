@@ -123,8 +123,7 @@ class ServicesRemoteDataSourceImpl implements ServicesRemoteDataSource {
       }
       final data = await ApiClient.get(ApiEndpoints.services, query: query);
       final list = data['services'] as List<dynamic>? ?? [];
-      final result = list.map((e) => ServiceModel.fromJson(e as Map<String, dynamic>)).toList();
-      if (result.isNotEmpty) return result;
+      return list.map((e) => ServiceModel.fromJson(e as Map<String, dynamic>)).toList();
     } catch (_) {}
 
     // Fallback Mock Data
@@ -139,8 +138,7 @@ class ServicesRemoteDataSourceImpl implements ServicesRemoteDataSource {
     try {
       final data = await ApiClient.get(ApiEndpoints.popularServices);
       final list = data['services'] as List<dynamic>? ?? [];
-      final result = list.map((e) => ServiceModel.fromJson(e as Map<String, dynamic>)).toList();
-      if (result.isNotEmpty) return result;
+      return list.map((e) => ServiceModel.fromJson(e as Map<String, dynamic>)).toList();
     } catch (_) {}
 
     // Fallback Mock Data
@@ -155,8 +153,7 @@ class ServicesRemoteDataSourceImpl implements ServicesRemoteDataSource {
         'category': category,
       });
       final list = data['services'] as List<dynamic>? ?? [];
-      final result = list.map((e) => ServiceModel.fromJson(e as Map<String, dynamic>)).toList();
-      if (result.isNotEmpty) return result;
+      return list.map((e) => ServiceModel.fromJson(e as Map<String, dynamic>)).toList();
     } catch (_) {}
 
     // Fallback Mock Search
@@ -172,7 +169,9 @@ class ServicesRemoteDataSourceImpl implements ServicesRemoteDataSource {
   Future<ServiceModel?> getServiceById(String id) async {
     try {
       final data = await ApiClient.get(ApiEndpoints.serviceById(id));
-      return ServiceModel.fromJson(data['service'] as Map<String, dynamic>);
+      if (data['service'] != null) {
+        return ServiceModel.fromJson(data['service'] as Map<String, dynamic>);
+      }
     } catch (_) {}
 
     try {
@@ -186,8 +185,13 @@ class ServicesRemoteDataSourceImpl implements ServicesRemoteDataSource {
   Future<List<String>> getCategories() async {
     try {
       final data = await ApiClient.get(ApiEndpoints.categories);
-      final list = (data['categories'] as List<dynamic>? ?? []).cast<String>();
-      if (list.isNotEmpty) return list;
+      final list = (data['categories'] as List<dynamic>? ?? []).map((e) => e.toString()).toList();
+      if (list.isNotEmpty) {
+        if (!list.contains('الكل')) {
+          list.insert(0, 'الكل');
+        }
+        return list;
+      }
     } catch (_) {}
 
     return _fallbackCategories;
@@ -197,8 +201,10 @@ class ServicesRemoteDataSourceImpl implements ServicesRemoteDataSource {
   Future<List<Map<String, dynamic>>> getSliders() async {
     try {
       final data = await ApiClient.get(ApiEndpoints.sliders);
-      final list = (data['sliders'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
-      if (list.isNotEmpty) return list;
+      final list = data['sliders'] as List<dynamic>? ?? [];
+      if (list.isNotEmpty) {
+        return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      }
     } catch (_) {}
 
     return _fallbackSliders;

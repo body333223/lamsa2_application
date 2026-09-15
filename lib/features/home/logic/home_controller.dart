@@ -8,7 +8,9 @@ class HomeController extends ChangeNotifier {
   final HomeRepository _repository;
 
   HomeController({HomeRepository? repository})
-      : _repository = repository ?? HomeRepository();
+      : _repository = repository ?? HomeRepository() {
+    loadAll();
+  }
 
   // ── Bottom Navigation ──────────────────────────────────
   int _currentIndex = 0;
@@ -18,6 +20,18 @@ class HomeController extends ChangeNotifier {
     if (_currentIndex != index) {
       _currentIndex = index;
       notifyListeners();
+    }
+  }
+
+  // ── Selected Category ───────────────────────────────────
+  String _selectedCategory = 'الكل';
+  String get selectedCategory => _selectedCategory;
+
+  void selectCategory(String category) {
+    if (_selectedCategory != category) {
+      _selectedCategory = category;
+      notifyListeners();
+      loadServices(category: category == 'الكل' ? null : category);
     }
   }
 
@@ -84,7 +98,7 @@ class HomeController extends ChangeNotifier {
       loadPopularServices(),
       loadSliders(),
       loadCategories(),
-      loadServices(),
+      loadServices(category: _selectedCategory == 'الكل' ? null : _selectedCategory),
     ]);
   }
 

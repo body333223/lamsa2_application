@@ -1,4 +1,4 @@
-﻿// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -101,8 +101,8 @@ class HomeHeader extends StatelessWidget {
                   HomeSearchBar(hint: s.searchHint, isDark: isDark),
                   const SizedBox(height: 22),
 
-                  // ── Promo banner from Firestore ──
-                  PromoBanner(isDark: isDark),
+                  // ── Promo banner from Backend ──
+                  PromoBanner(isDark: isDark, sliders: controller.sliders),
                 ],
               ),
             ),

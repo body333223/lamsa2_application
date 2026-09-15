@@ -31,7 +31,55 @@ class ServicesList extends StatelessWidget {
               color: theme.colorScheme.onSurface,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
+
+          // ── Category Filter Chips ──
+          if (controller.categories.isNotEmpty) ...[
+            SizedBox(
+              height: 38,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: controller.categories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final cat = controller.categories[index];
+                  final isSelected = controller.selectedCategory == cat;
+                  return GestureDetector(
+                    onTap: () => controller.selectCategory(cat),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.primary
+                            : (isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.04)),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.primary
+                              : (isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.08)),
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          cat,
+                          style: GoogleFonts.cairo(
+                            fontSize: 13,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                            color: isSelected
+                                ? Colors.white
+                                : theme.colorScheme.onSurface.withOpacity(0.8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+
           Builder(
             builder: (_) {
               if (controller.isLoadingServices) {
